@@ -10,7 +10,7 @@
 
 <p align="center">
   <img alt="macOS 13+" src="https://img.shields.io/badge/macOS-13%2B-black">
-  <img alt="Swift 6.3" src="https://img.shields.io/badge/Swift-6.3-F05138">
+  <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-arm64-black">
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-green"></a>
 </p>
 
@@ -47,51 +47,35 @@
 ## 系统要求
 
 - macOS 13 Ventura 或更高版本
-- 当前安装包支持 Apple Silicon（M 系列、`arm64`）Mac
-- 从源码构建时需要 Swift 6.3/Xcode Command Line Tools
+- Apple Silicon（M 系列）Mac
 - 带中键或侧键的鼠标，具体按键编号取决于设备和驱动
 
-## 安装
+## 下载与安装
 
-### 使用安装镜像
+### 下载
 
-1. 前往 [GitHub Releases](https://github.com/LUANZHENZHANG/macmouseplus/releases/latest)。
-2. 下载名称以 `.dmg` 结尾的安装镜像。
-3. 打开镜像，将“顺鼠.app”拖入“Applications”文件夹。
-4. 首次启动时，在“应用程序”中右键点击顺鼠，选择“打开”。
+**[下载顺鼠 1.11 DMG 安装包](https://github.com/LUANZHENZHANG/macmouseplus/releases/download/v1.11/Shunshu-1.11-macOS-arm64.dmg)**
 
-当前安装包使用临时代码签名，尚未经过 Apple Developer ID 签名和公证，因此 macOS
-首次启动时会要求你手动确认。请只从本项目 GitHub Releases 下载。
+文件：`Shunshu-1.11-macOS-arm64.dmg`，约 2 MB。
 
-### 从源码构建
+也可以前往 [Releases 页面](https://github.com/LUANZHENZHANG/macmouseplus/releases/latest)
+查看最新版和更新说明。
 
-```bash
-git clone https://github.com/LUANZHENZHANG/macmouseplus.git
-cd macmouseplus
-./scripts/build_app.sh
-./scripts/install_app.sh
-open /Applications/顺鼠.app || open ~/Applications/顺鼠.app
-```
+### 安装
 
-构建产物位于 `dist/顺鼠.app`。安装脚本优先安装到
-`/Applications/顺鼠.app`；没有写入权限时，会安装到
-`~/Applications/顺鼠.app`。
+1. 双击下载的 `.dmg` 文件。
+2. 将“顺鼠.app”拖入窗口中的“Applications”文件夹。
+3. 打开 Finder 的“应用程序”目录。
+4. 首次启动时，右键点击“顺鼠”，选择“打开”，再确认打开。
+5. 按照下方说明授予系统权限。
 
-生成可分发的 DMG：
-
-```bash
-./scripts/build_dmg.sh
-```
+> 当前安装包使用临时代码签名，尚未经过 Apple Developer ID 签名和公证，因此不能在
+> 第一次启动时直接双击打开。请只从本项目 GitHub Releases 下载。
 
 ### 更新
 
-```bash
-git pull
-./scripts/build_app.sh
-./scripts/install_app.sh
-```
-
-更新后请完全退出顺鼠并重新打开。macOS 有时会要求重新确认相关权限。
+下载最新 DMG，退出正在运行的顺鼠，再将新版“顺鼠.app”拖入 Applications 并选择替换。
+更新后 macOS 有时会要求重新确认相关权限。
 
 ## 首次授权
 
@@ -109,9 +93,7 @@ git pull
 
 在“辅助功能”“输入监控”和“自动化”中允许 `顺鼠.app`。授权后完全退出并重新启动应用。
 
-顺鼠不连接网络，不包含遥测，不上传鼠标事件，也不记录键盘输入。设置仅保存在本机的
-`UserDefaults` 中。源代码中的事件监听实现可以在
-[`Sources/MacMousePlus`](Sources/MacMousePlus) 中审查。
+顺鼠不连接网络，不包含遥测，不上传鼠标事件，也不记录键盘输入。所有设置仅保存在本机。
 
 ## 使用
 
@@ -126,28 +108,12 @@ git pull
 
 如果菜单显示“监听创建失败”，通常是权限尚未生效。请检查系统设置，完全退出应用后再启动。
 
-## 开机启动
-
-```bash
-./scripts/install_launchagent.sh
-```
-
-关闭开机启动：
-
-```bash
-./scripts/uninstall_launchagent.sh
-```
-
-该脚本会在 `~/Library/LaunchAgents` 中安装当前用户的 LaunchAgent。
-
 ## 卸载
 
-```bash
-./scripts/uninstall_launchagent.sh
-./scripts/uninstall_app.sh
-```
-
-如需清除系统授权记录，可在“系统设置 → 隐私与安全性”中移除顺鼠。
+1. 从菜单栏的顺鼠图标中选择“退出”。
+2. 打开 Finder 的“应用程序”目录。
+3. 将“顺鼠.app”移到废纸篓。
+4. 如需清除授权记录，可在“系统设置 → 隐私与安全性”中移除顺鼠。
 
 ## 已知限制
 
@@ -155,23 +121,10 @@ git pull
 - 侧键编号由鼠标和驱动决定，部分设备的前进/后退方向可能相反或无法识别。
 - 桌面切换依赖 macOS 的 `Control + ←/→` 系统快捷键。
 - 当前安装包仅支持 Apple Silicon，使用临时签名且没有 Apple 公证。
-- 项目目前没有自动化测试套件，提交前至少应执行 `swift build` 和应用打包验证。
 
 遇到问题时，请先查看菜单中的“状态”和“调试”，再按
 [Bug 报告模板](https://github.com/LUANZHENZHANG/macmouseplus/issues/new?template=bug_report.yml)
 提交系统版本、鼠标型号和复现步骤。
-
-## 项目结构
-
-```text
-Sources/MacMousePlus/   应用源码
-scripts/                构建、安装和卸载脚本
-assets/                 应用图标
-launchd/                LaunchAgent 示例
-docs/                   实现说明和历史方案
-```
-
-![顺鼠模块结构](docs/latest-module-layout.svg)
 
 ## 参与贡献
 
