@@ -25,8 +25,8 @@
 - Xcode Command Line Tools
 
 ```bash
-git clone https://github.com/LUANZHENZHANG/macmouseplus.git
-cd macmouseplus
+git clone https://github.com/LUANZHENZHANG/Ex-Mouse.git
+cd Ex-Mouse
 swift build
 ./scripts/build_app.sh
 ./scripts/build_dmg.sh

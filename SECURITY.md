@@ -11,7 +11,7 @@
 
 优先使用 GitHub 仓库的 **Security → Report a vulnerability** 私下提交报告：
 
-<https://github.com/LUANZHENZHANG/macmouseplus/security/advisories/new>
+<https://github.com/LUANZHENZHANG/Ex-Mouse/security/advisories/new>
 
 如果该入口不可用，请创建一个不包含漏洞细节的 Issue，注明“需要私下报告安全问题”，
 由维护者建立私密沟通渠道。

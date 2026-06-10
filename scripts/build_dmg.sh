@@ -32,7 +32,7 @@ else
     ARCH_LABEL="${ARCHITECTURES// /-}"
 fi
 
-DMG_PATH="$ROOT_DIR/dist/Shunshu-${VERSION}-macOS-${ARCH_LABEL}.dmg"
+DMG_PATH="$ROOT_DIR/dist/Ex-Mouse-${VERSION}-macOS-${ARCH_LABEL}.dmg"
 
 rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR"
@@ -52,7 +52,7 @@ cat > "$STAGING_DIR/安装说明.txt" <<'EOF'
 5. 授权后完全退出顺鼠，再重新启动一次。
 
 顺鼠不联网、不上传数据，也不记录键盘输入。
-项目主页：https://github.com/LUANZHENZHANG/macmouseplus
+项目主页：https://github.com/LUANZHENZHANG/Ex-Mouse
 EOF
 
 rm -f "$DMG_PATH"
