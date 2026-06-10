@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc">
+  <title id="title">顺鼠 Ex-Mouse 最新模块位置关系图</title>
+  <desc id="desc">展示 MacMousePlus 当前实现中菜单栏入口、AppDelegate 协调层、设置、权限、滚动后端、手势控制器与 macOS 系统接口的位置关系。</desc>
+  <defs>
+    <style>
+      .page { fill: #f6f5ef; }
+      .panel { fill: #ffffff; stroke: #242424; stroke-width: 2.2; }
+      .panel-soft { fill: #fbfaf5; stroke: #55524a; stroke-width: 1.8; }
+      .header { fill: #222222; font: 700 40px -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", sans-serif; letter-spacing: 0; }
+      .subhead { fill: #55524a; font: 500 22px -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif; letter-spacing: 0; }
+      .label { fill: #222222; font: 700 25px -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif; letter-spacing: 0; }
+      .small { fill: #45423b; font: 500 18px -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif; letter-spacing: 0; }
+      .tiny { fill: #67635a; font: 500 15px -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif; letter-spacing: 0; }
+      .badge { fill: #e9e1d1; stroke: #242424; stroke-width: 1.4; }
+      .scroll { fill: #dceee7; stroke: #1f5f51; stroke-width: 2; }
+      .gesture { fill: #e7e3f3; stroke: #51437d; stroke-width: 2; }
+      .system { fill: #e9edf1; stroke: #415061; stroke-width: 2; }
+      .store { fill: #f6dfcf; stroke: #7a4a2d; stroke-width: 2; }
+      .arrow { fill: none; stroke: #242424; stroke-width: 2.6; marker-end: url(#arrow); }
+      .arrow-soft { fill: none; stroke: #746f65; stroke-width: 2.1; marker-end: url(#arrowSoft); stroke-dasharray: 7 7; }
+      .arrow-scroll { fill: none; stroke: #1f5f51; stroke-width: 2.6; marker-end: url(#arrowScroll); }
+      .arrow-gesture { fill: none; stroke: #51437d; stroke-width: 2.6; marker-end: url(#arrowGesture); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#242424"/>
+    </marker>
+    <marker id="arrowSoft" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#746f65"/>
+    </marker>
+    <marker id="arrowScroll" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f5f51"/>
+    </marker>
+    <marker id="arrowGesture" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#51437d"/>
+    </marker>
+    <filter id="shadow" x="-12%" y="-12%" width="124%" height="124%">
+      <feDropShadow dx="0" dy="9" stdDeviation="10" flood-color="#000000" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <rect class="page" x="0" y="0" width="1600" height="1000"/>
+  <text class="header" x="80" y="78">顺鼠 Ex-Mouse 1.11 · 最新模块位置关系图</text>
+  <text class="subhead" x="80" y="116">按当前代码整理：菜单栏入口负责展示和开关，AppDelegate 协调滚动、手势、设置与权限，底层通过 macOS 事件与系统接口工作。</text>
+
+  <rect class="panel" x="560" y="150" width="480" height="118" rx="8" filter="url(#shadow)"/>
+  <text class="label" x="620" y="197">菜单栏入口</text>
+  <text class="small" x="620" y="229">NSStatusItem + NSMenu</text>
+  <text class="tiny" x="620" y="254">状态 / 设置 / 调试 / 退出</text>
+  <circle cx="594" cy="207" r="18" fill="#222222"/>
+  <path d="M587 207c0-8 5-13 13-13s13 5 13 13v8c0 8-5 13-13 13s-13-5-13-13z" fill="#f6f5ef"/>
+  <line x1="600" y1="195" x2="600" y2="206" stroke="#222222" stroke-width="2"/>
+
+  <rect class="panel" x="540" y="330" width="520" height="128" rx="8" filter="url(#shadow)"/>
+  <text class="label" x="600" y="378">AppDelegate 协调层</text>
+  <text class="small" x="600" y="412">启动应用、刷新菜单、响应开关、分发 start / stop</text>
+  <text class="tiny" x="600" y="438">持有 SettingsStore、ScrollController、GestureController</text>
+  <rect class="badge" x="570" y="354" width="20" height="68" rx="4"/>
+
+  <rect class="store" x="85" y="330" width="330" height="128" rx="8" filter="url(#shadow)"/>
+  <text class="label" x="130" y="378">SettingsStore</text>
+  <text class="small" x="130" y="412">UserDefaults 持久化开关</text>
+  <text class="tiny" x="130" y="438">滚动 / 手势总开关 / 中键 / 侧键</text>
+
+  <rect class="system" x="1185" y="330" width="330" height="128" rx="8" filter="url(#shadow)"/>
+  <text class="label" x="1230" y="378">PermissionManager</text>
+  <text class="small" x="1230" y="412">辅助功能权限检查与申请</text>
+  <text class="tiny" x="1230" y="438">AXIsProcessTrusted</text>
+
+  <rect class="scroll" x="80" y="555" width="440" height="250" rx="8" filter="url(#shadow)"/>
+  <text class="label" x="125" y="604">滚动模块</text>
+  <text class="small" x="125" y="638">ScrollController</text>
+  <text class="tiny" x="125" y="664">选择 NextScrollBackend</text>
+  <line x1="125" y1="688" x2="475" y2="688" stroke="#1f5f51" stroke-width="1.5" opacity="0.45"/>
+  <text class="small" x="125" y="724">NextScrollBackend</text>
+  <text class="tiny" x="125" y="750">Passive Tap：识别触控板 touches</text>
+  <text class="tiny" x="125" y="775">Active Tap：处理 scrollWheel</text>
+  <text class="tiny" x="125" y="800">鼠标反向，触控板放行</text>
+
+  <rect class="gesture" x="1080" y="555" width="440" height="250" rx="8" filter="url(#shadow)"/>
+  <text class="label" x="1125" y="604">手势模块</text>
+  <text class="small" x="1125" y="638">GestureController</text>
+  <text class="tiny" x="1125" y="664">Event Tap + 全局监听兜底</text>
+  <line x1="1125" y1="688" x2="1475" y2="688" stroke="#51437d" stroke-width="1.5" opacity="0.45"/>
+  <text class="small" x="1125" y="724">动作识别</text>
+  <text class="tiny" x="1125" y="750">中键左 / 右滑：切换桌面</text>
+  <text class="tiny" x="1125" y="775">中键纵向滑动：调度中心</text>
+  <text class="tiny" x="1125" y="800">侧键 3 / 4：前后桌面</text>
+
+  <rect class="system" x="565" y="585" width="470" height="185" rx="8" filter="url(#shadow)"/>
+  <text class="label" x="610" y="634">系统滚动方向管理</text>
+  <text class="small" x="610" y="668">SystemScrollDirectionManager</text>
+  <text class="tiny" x="610" y="696">启动时强制 macOS 自然滚动</text>
+  <text class="tiny" x="610" y="722">停止时恢复原始全局设置</text>
+  <text class="tiny" x="610" y="748">defaults write -g com.apple.swipescrolldirection</text>
+
+  <rect class="panel-soft" x="320" y="880" width="960" height="64" rx="8"/>
+  <text class="small" x="365" y="920">macOS 底层接口：CoreGraphics CGEvent Tap · NSEvent · NSWorkspace · NSAppleScript · System Events · Mission Control</text>
+
+  <path class="arrow" d="M800 268 L800 328"/>
+  <path class="arrow-soft" d="M540 392 C495 392 470 392 418 392"/>
+  <path class="arrow-soft" d="M1060 392 C1105 392 1130 392 1182 392"/>
+  <path class="arrow-scroll" d="M710 458 C590 505 475 520 357 555"/>
+  <path class="arrow-gesture" d="M890 458 C1010 505 1125 520 1243 555"/>
+  <path class="arrow-scroll" d="M520 680 C545 680 540 680 562 680"/>
+  <path class="arrow-gesture" d="M1080 680 C1055 680 1060 680 1038 680"/>
+  <path class="arrow-scroll" d="M300 805 C360 860 465 880 655 880"/>
+  <path class="arrow" d="M800 770 L800 878"/>
+  <path class="arrow-gesture" d="M1300 805 C1240 860 1135 880 945 880"/>
+
+  <text class="tiny" x="450" y="372">读取 / 写入开关</text>
+  <text class="tiny" x="1087" y="372">权限状态用于菜单与监听</text>
+  <text class="tiny" x="370" y="532">滚动开关启停</text>
+  <text class="tiny" x="1078" y="532">手势开关启停</text>
+  <text class="tiny" x="540" y="660">依赖全局自然滚动</text>
+  <text class="tiny" x="914" y="660">发送系统动作</text>
+</svg>

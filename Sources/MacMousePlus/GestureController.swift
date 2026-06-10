@@ -1,0 +1,435 @@
+import AppKit
+import ApplicationServices
+import CoreGraphics
+
+final class GestureController {
+    private enum Constants {
+        static let horizontalTriggerDistance: CGFloat = 96
+        static let verticalTriggerDistance: CGFloat = 56
+        static let directionBias: CGFloat = 18
+    }
+
+    private enum GestureAction {
+        case previousSpace
+        case nextSpace
+        case missionControl
+
+        var description: String {
+            switch self {
+            case .previousSpace:
+                return "Previous Desktop"
+            case .nextSpace:
+                return "Next Desktop"
+            case .missionControl:
+                return "Mission Control"
+            }
+        }
+    }
+
+    private struct GestureState {
+        var downLocation: CGPoint
+        var lastLocation: CGPoint
+        var hasTriggered = false
+    }
+
+    private let settings: SettingsStore
+    private let onStateChanged: () -> Void
+
+    private var eventTap: CFMachPort?
+    private var runLoopSource: CFRunLoopSource?
+    private var globalMonitor: Any?
+    private var trackingTimer: DispatchSourceTimer?
+    private var gestureState: GestureState?
+    private var gestureLockedUntilMouseUp = false
+    private var swallowedOtherMouseUpButtons = Set<Int64>()
+    private(set) var isListening = false
+    private(set) var tapListening = false
+    private(set) var globalListening = false
+    private(set) var lastDebugMessage = "尚未收到事件"
+
+    init(settings: SettingsStore, onStateChanged: @escaping () -> Void) {
+        self.settings = settings
+        self.onStateChanged = onStateChanged
+    }
+
+    func start() {
+        stop()
+        createListenersIfNeeded()
+        onStateChanged()
+    }
+
+    func stop() {
+        if let tap = eventTap {
+            CGEvent.tapEnable(tap: tap, enable: false)
+        }
+        if let source = runLoopSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
+        }
+        if let globalMonitor {
+            NSEvent.removeMonitor(globalMonitor)
+        }
+        trackingTimer?.cancel()
+        eventTap = nil
+        runLoopSource = nil
+        globalMonitor = nil
+        trackingTimer = nil
+        gestureState = nil
+        gestureLockedUntilMouseUp = false
+        tapListening = false
+        globalListening = false
+        isListening = false
+    }
+
+    func reloadSettings() {
+        if eventTap == nil {
+            createListenersIfNeeded()
+        }
+        if let tap = eventTap {
+            CGEvent.tapEnable(tap: tap, enable: settings.gesturesEnabled)
+        }
+        onStateChanged()
+    }
+
+    private func createListenersIfNeeded() {
+        createEventTapIfNeeded()
+        createGlobalMonitorIfNeeded()
+        isListening = tapListening || globalListening
+    }
+
+    private func createEventTapIfNeeded() {
+        guard eventTap == nil else {
+            return
+        }
+
+        let events: CGEventMask =
+            (1 << CGEventType.otherMouseDown.rawValue) |
+            (1 << CGEventType.otherMouseDragged.rawValue) |
+            (1 << CGEventType.otherMouseUp.rawValue) |
+            (1 << CGEventType.tapDisabledByTimeout.rawValue) |
+            (1 << CGEventType.tapDisabledByUserInput.rawValue)
+
+        let callback: CGEventTapCallBack = { proxy, type, event, refcon in
+            let controller = Unmanaged<GestureController>.fromOpaque(refcon!).takeUnretainedValue()
+            return controller.handleEvent(proxy: proxy, type: type, event: event)
+        }
+
+        let refcon = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+        guard let tap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: events,
+            callback: callback,
+            userInfo: refcon
+        ) else {
+            tapListening = false
+            lastDebugMessage = "底层监听创建失败"
+            isListening = globalListening
+            onStateChanged()
+            return
+        }
+
+        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: settings.gesturesEnabled)
+
+        eventTap = tap
+        runLoopSource = source
+        tapListening = true
+        isListening = true
+        lastDebugMessage = "底层监听已建立"
+        onStateChanged()
+    }
+
+    private func createGlobalMonitorIfNeeded() {
+        guard globalMonitor == nil else {
+            return
+        }
+
+        globalMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.otherMouseDown, .otherMouseDragged, .otherMouseUp]
+        ) { [weak self] event in
+            self?.handleGlobalEvent(event)
+        }
+
+        if globalMonitor != nil {
+            globalListening = true
+            isListening = true
+            if !tapListening {
+                lastDebugMessage = "已切换到全局监听兜底"
+            }
+        } else {
+            globalListening = false
+            isListening = tapListening
+            if !tapListening {
+                lastDebugMessage = "全局监听也创建失败"
+            }
+        }
+        onStateChanged()
+    }
+
+    private func handleEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            if let tap = eventTap {
+                CGEvent.tapEnable(tap: tap, enable: settings.gesturesEnabled)
+            }
+            return Unmanaged.passRetained(event)
+        }
+
+        guard settings.gesturesEnabled, PermissionManager.hasAccessibilityPermission else {
+            return Unmanaged.passRetained(event)
+        }
+
+        switch type {
+        case .otherMouseDown:
+            let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
+            if settings.sideButtonsEnabled, let action = sideButtonAction(for: buttonNumber) {
+                swallowedOtherMouseUpButtons.insert(buttonNumber)
+                trigger(action)
+                return nil
+            }
+            guard buttonNumber == 2, settings.middleButtonGesturesEnabled else {
+                return Unmanaged.passRetained(event)
+            }
+            gestureLockedUntilMouseUp = false
+            let location = NSEvent.mouseLocation
+            beginTracking(at: location, source: "底层监听")
+            updateDebug("收到中键按下")
+            return nil
+
+        case .otherMouseDragged:
+            guard event.getIntegerValueField(.mouseEventButtonNumber) == 2, settings.middleButtonGesturesEnabled else {
+                return Unmanaged.passRetained(event)
+            }
+            guard !gestureLockedUntilMouseUp else {
+                return nil
+            }
+            guard var state = gestureState else {
+                return Unmanaged.passRetained(event)
+            }
+            state.lastLocation = NSEvent.mouseLocation
+            gestureState = state
+
+            if let action = detectAction(from: state) {
+                commitTrigger(action, state: state)
+            }
+            return gestureLockedUntilMouseUp ? nil : Unmanaged.passRetained(event)
+
+        case .otherMouseUp:
+            let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
+            if swallowedOtherMouseUpButtons.remove(buttonNumber) != nil {
+                return nil
+            }
+            guard buttonNumber == 2, settings.middleButtonGesturesEnabled else {
+                return Unmanaged.passRetained(event)
+            }
+            defer { endTracking() }
+            gestureLockedUntilMouseUp = false
+            updateDebug("收到中键抬起", transient: true)
+            guard let state = gestureState else {
+                return Unmanaged.passRetained(event)
+            }
+            if state.hasTriggered {
+                return nil
+            }
+            updateDebug("中键点击已拦截")
+            return nil
+
+        default:
+            return Unmanaged.passRetained(event)
+        }
+    }
+
+    private func detectAction(from state: GestureState) -> GestureAction? {
+        let dx = state.lastLocation.x - state.downLocation.x
+        let dy = state.lastLocation.y - state.downLocation.y
+
+        if abs(dx) >= Constants.horizontalTriggerDistance, abs(dx) > abs(dy) + Constants.directionBias {
+            updateDebug(dx < 0 ? "中键识别为左滑" : "中键识别为右滑")
+            return dx < 0 ? .nextSpace : .previousSpace
+        }
+
+        if abs(dy) >= Constants.verticalTriggerDistance,
+           abs(dy) > abs(dx) + Constants.directionBias {
+            updateDebug("中键识别为纵向滑动")
+            return .missionControl
+        }
+
+        updateDebug("中键拖动中：dx=\(Int(dx)) dy=\(Int(dy))")
+        return nil
+    }
+
+    private func trigger(_ action: GestureAction) {
+        updateDebug("触发动作：\(action.description)")
+        switch action {
+        case .previousSpace:
+            triggerSystemShortcut(arrow: "left")
+        case .nextSpace:
+            triggerSystemShortcut(arrow: "right")
+        case .missionControl:
+            openMissionControl()
+        }
+    }
+
+    private func openMissionControl() {
+        let missionControlURL = URL(fileURLWithPath: "/System/Applications/Mission Control.app")
+        let configuration = NSWorkspace.OpenConfiguration()
+        NSWorkspace.shared.openApplication(at: missionControlURL, configuration: configuration, completionHandler: nil)
+    }
+
+    private func triggerSystemShortcut(arrow: String) {
+        let scriptSource = """
+        tell application "System Events"
+            key code \(keyCode(for: arrow)) using control down
+        end tell
+        """
+
+        if let script = NSAppleScript(source: scriptSource) {
+            var error: NSDictionary?
+            script.executeAndReturnError(&error)
+            if let error {
+                let message = error[NSAppleScript.errorMessage] as? String ?? "未知错误"
+                updateDebug("动作发送失败：\(message)")
+            }
+        } else {
+            updateDebug("动作发送失败：脚本创建失败")
+        }
+    }
+
+    private func keyCode(for arrow: String) -> Int {
+        switch arrow {
+        case "left":
+            return 123
+        case "right":
+            return 124
+        case "up":
+            return 126
+        default:
+            return 124
+        }
+    }
+
+    private func handleGlobalEvent(_ event: NSEvent) {
+        guard settings.gesturesEnabled else {
+            return
+        }
+
+        switch event.type {
+        case .otherMouseDown:
+            if settings.sideButtonsEnabled, sideButtonAction(for: Int64(event.buttonNumber)) != nil {
+                return
+            }
+            guard event.buttonNumber == 2, settings.middleButtonGesturesEnabled else {
+                return
+            }
+            gestureLockedUntilMouseUp = false
+            let location = NSEvent.mouseLocation
+            beginTracking(at: location, source: "全局监听")
+            updateDebug("全局监听：中键按下")
+
+        case .otherMouseDragged:
+            guard event.buttonNumber == 2, settings.middleButtonGesturesEnabled else {
+                return
+            }
+            guard !gestureLockedUntilMouseUp else {
+                return
+            }
+            guard var state = gestureState else {
+                return
+            }
+            let location = NSEvent.mouseLocation
+            state.lastLocation = location
+            gestureState = state
+            if let action = detectAction(from: state) {
+                commitTrigger(action, state: state)
+            }
+
+        case .otherMouseUp:
+            guard event.buttonNumber == 2 else {
+                return
+            }
+            gestureLockedUntilMouseUp = false
+            updateDebug("全局监听：中键抬起", transient: true)
+            endTracking()
+
+        default:
+            break
+        }
+    }
+
+    private func beginTracking(at location: CGPoint, source: String) {
+        trackingTimer?.cancel()
+        gestureState = GestureState(downLocation: location, lastLocation: location)
+        gestureLockedUntilMouseUp = false
+
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now(), repeating: .milliseconds(16))
+        timer.setEventHandler { [weak self] in
+            self?.pollMouseLocation(source: source)
+        }
+        timer.resume()
+        trackingTimer = timer
+    }
+
+    private func endTracking() {
+        trackingTimer?.cancel()
+        trackingTimer = nil
+        gestureState = nil
+        gestureLockedUntilMouseUp = false
+    }
+
+    private func pollMouseLocation(source: String) {
+        guard var state = gestureState else {
+            return
+        }
+
+        let currentLocation = NSEvent.mouseLocation
+        state.lastLocation = currentLocation
+        gestureState = state
+
+        if !gestureLockedUntilMouseUp, let action = detectAction(from: state) {
+            updateDebug("\(source)：轮询识别成功")
+            commitTrigger(action, state: state)
+        }
+    }
+
+    private func commitTrigger(_ action: GestureAction, state: GestureState) {
+        guard !gestureLockedUntilMouseUp else {
+            return
+        }
+
+        var updatedState = state
+        updatedState.hasTriggered = true
+        gestureState = updatedState
+        gestureLockedUntilMouseUp = true
+        trackingTimer?.cancel()
+        trackingTimer = nil
+        trigger(action)
+    }
+
+    private func updateDebug(_ message: String, transient: Bool = false) {
+        if transient, isMeaningfulDebug(lastDebugMessage) {
+            onStateChanged()
+            return
+        }
+        lastDebugMessage = message
+        onStateChanged()
+    }
+
+    private func isMeaningfulDebug(_ message: String) -> Bool {
+        message.contains("识别为") || message.contains("触发动作") || message.contains("轮询识别成功")
+    }
+
+    private func sideButtonAction(for buttonNumber: Int64) -> GestureAction? {
+        switch buttonNumber {
+        case 3:
+            updateDebug("侧键上：下一个桌面")
+            return .nextSpace
+        case 4:
+            updateDebug("侧键下：上一个桌面")
+            return .previousSpace
+        default:
+            return nil
+        }
+    }
+}
