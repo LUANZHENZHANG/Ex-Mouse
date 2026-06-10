@@ -1,0 +1,65 @@
+name: Bug 报告
+description: 报告可复现的滚动、手势、权限或安装问题
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先搜索已有 Issue，并避免提交密码、密钥或个人文件。
+  - type: input
+    id: version
+    attributes:
+      label: 顺鼠版本
+      description: 版本号或 Git commit
+      placeholder: "1.11 / e14be78"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS 和硬件
+      placeholder: "macOS 15.5，Apple M2"
+    validations:
+      required: true
+  - type: input
+    id: mouse
+    attributes:
+      label: 鼠标型号和驱动
+      placeholder: "Logitech MX Master 3S，Logi Options+ 版本..."
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题描述
+      description: 实际发生了什么？你原本预期什么？
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 启动顺鼠
+        2. 打开...
+        3. 使用...
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: 状态和调试信息
+      description: 请填写菜单中“状态”和“调试”显示的文字。
+    validations:
+      required: true
+  - type: checkboxes
+    id: permissions
+    attributes:
+      label: 权限确认
+      options:
+        - label: 已授予辅助功能权限
+        - label: 已授予输入监控权限
+        - label: 已检查自动化权限
+        - label: 授权后已完全退出并重新启动顺鼠
