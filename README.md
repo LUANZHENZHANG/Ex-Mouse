@@ -47,13 +47,23 @@
 ## 系统要求
 
 - macOS 13 Ventura 或更高版本
-- Apple Silicon 或 Intel Mac
+- 当前安装包支持 Apple Silicon（M 系列、`arm64`）Mac
 - 从源码构建时需要 Swift 6.3/Xcode Command Line Tools
 - 带中键或侧键的鼠标，具体按键编号取决于设备和驱动
 
 ## 安装
 
-目前尚未提供经过 Apple Developer ID 签名和公证的安装包，需要从源码构建。
+### 使用安装镜像
+
+1. 前往 [GitHub Releases](https://github.com/LUANZHENZHANG/macmouseplus/releases/latest)。
+2. 下载名称以 `.dmg` 结尾的安装镜像。
+3. 打开镜像，将“顺鼠.app”拖入“Applications”文件夹。
+4. 首次启动时，在“应用程序”中右键点击顺鼠，选择“打开”。
+
+当前安装包使用临时代码签名，尚未经过 Apple Developer ID 签名和公证，因此 macOS
+首次启动时会要求你手动确认。请只从本项目 GitHub Releases 下载。
+
+### 从源码构建
 
 ```bash
 git clone https://github.com/LUANZHENZHANG/macmouseplus.git
@@ -66,6 +76,12 @@ open /Applications/顺鼠.app || open ~/Applications/顺鼠.app
 构建产物位于 `dist/顺鼠.app`。安装脚本优先安装到
 `/Applications/顺鼠.app`；没有写入权限时，会安装到
 `~/Applications/顺鼠.app`。
+
+生成可分发的 DMG：
+
+```bash
+./scripts/build_dmg.sh
+```
 
 ### 更新
 
@@ -138,7 +154,7 @@ git pull
 - 滚轮来源通过事件特征判断，少数高分辨率鼠标可能被误判为触控板。
 - 侧键编号由鼠标和驱动决定，部分设备的前进/后退方向可能相反或无法识别。
 - 桌面切换依赖 macOS 的 `Control + ←/→` 系统快捷键。
-- 当前构建使用临时签名，没有 Apple 公证；它适合自行构建和测试，不等同于正式发行包。
+- 当前安装包仅支持 Apple Silicon，使用临时签名且没有 Apple 公证。
 - 项目目前没有自动化测试套件，提交前至少应执行 `swift build` 和应用打包验证。
 
 遇到问题时，请先查看菜单中的“状态”和“调试”，再按

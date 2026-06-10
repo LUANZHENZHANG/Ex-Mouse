@@ -29,6 +29,7 @@ git clone https://github.com/LUANZHENZHANG/macmouseplus.git
 cd macmouseplus
 swift build
 ./scripts/build_app.sh
+./scripts/build_dmg.sh
 ```
 
 生成的应用位于 `dist/顺鼠.app`。构建目录和应用产物不应提交到 Git。
