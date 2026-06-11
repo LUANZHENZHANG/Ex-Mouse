@@ -19,10 +19,11 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$ROOT_DIR"
-swift build -c release
+swift build -c release -Xswiftc -Osize
 
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$BUILD_DIR/MacMousePlus" "$MACOS_DIR/MacMousePlus"
+strip -x "$MACOS_DIR/MacMousePlus"
 
 rm -rf "$ICONSET_DIR"
 mkdir -p "$ICONSET_DIR"
@@ -66,9 +67,9 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.15</string>
+    <string>1.16</string>
     <key>CFBundleVersion</key>
-    <string>115</string>
+    <string>116</string>
     <key>LSUIElement</key>
     <true/>
 </dict>
@@ -83,5 +84,7 @@ codesign --verify --deep --strict "$APP_DIR"
 rm -rf "$OUTPUT_APP_DIR"
 mkdir -p "$(dirname "$OUTPUT_APP_DIR")"
 ditto --norsrc --noextattr "$APP_DIR" "$OUTPUT_APP_DIR"
+xattr -cr "$OUTPUT_APP_DIR"
+codesign --force --deep --sign - "$OUTPUT_APP_DIR"
 codesign --verify --deep --strict "$OUTPUT_APP_DIR"
 echo "Built app bundle at: $OUTPUT_APP_DIR"

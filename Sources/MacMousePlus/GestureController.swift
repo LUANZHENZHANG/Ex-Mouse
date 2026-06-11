@@ -8,17 +8,6 @@ final class GestureController {
         static let verticalTriggerDistance: CGFloat = 56
         static let directionBias: CGFloat = 18
         static let middleClickMovementTolerance: CGFloat = 8
-        static let dockSwipeSteps = 16
-        static let dockSwipeFrameInterval = DispatchTimeInterval.milliseconds(16)
-        static let dockSwipeProgress = 0.25
-        static let dockSwipeVelocity = 0.0
-        static let cgsEventTypeField = CGEventField(rawValue: 55)!
-        static let gestureHIDTypeField = CGEventField(rawValue: 110)!
-        static let swipeMotionField = CGEventField(rawValue: 123)!
-        static let swipeProgressField = CGEventField(rawValue: 124)!
-        static let swipeVelocityXField = CGEventField(rawValue: 129)!
-        static let swipeVelocityYField = CGEventField(rawValue: 130)!
-        static let gesturePhaseField = CGEventField(rawValue: 132)!
     }
 
     private enum GestureAction {
@@ -46,11 +35,11 @@ final class GestureController {
 
     private let settings: SettingsStore
     private let onStateChanged: () -> Void
+    private let desktopSwitcher = DesktopSwitcher()
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var trackingTimer: DispatchSourceTimer?
-    private var desktopSwipeTimer: DispatchSourceTimer?
     private var gestureState: GestureState?
     private var gestureLockedUntilMouseUp = false
     private var lastMiddleClickTime: TimeInterval?
@@ -77,11 +66,10 @@ final class GestureController {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
         }
         trackingTimer?.cancel()
-        desktopSwipeTimer?.cancel()
+        desktopSwitcher.stop()
         eventTap = nil
         runLoopSource = nil
         trackingTimer = nil
-        desktopSwipeTimer = nil
         gestureState = nil
         gestureLockedUntilMouseUp = false
         lastMiddleClickTime = nil
@@ -151,11 +139,11 @@ final class GestureController {
             if let tap = eventTap {
                 CGEvent.tapEnable(tap: tap, enable: settings.gesturesEnabled)
             }
-            return Unmanaged.passRetained(event)
+            return Unmanaged.passUnretained(event)
         }
 
         guard settings.gesturesEnabled, PermissionManager.hasAccessibilityPermission else {
-            return Unmanaged.passRetained(event)
+            return Unmanaged.passUnretained(event)
         }
 
         switch type {
@@ -167,7 +155,7 @@ final class GestureController {
                 return nil
             }
             guard buttonNumber == 2, settings.middleButtonGesturesEnabled else {
-                return Unmanaged.passRetained(event)
+                return Unmanaged.passUnretained(event)
             }
             gestureLockedUntilMouseUp = false
             let location = NSEvent.mouseLocation
@@ -177,13 +165,13 @@ final class GestureController {
 
         case .otherMouseDragged:
             guard event.getIntegerValueField(.mouseEventButtonNumber) == 2, settings.middleButtonGesturesEnabled else {
-                return Unmanaged.passRetained(event)
+                return Unmanaged.passUnretained(event)
             }
             guard !gestureLockedUntilMouseUp else {
                 return nil
             }
             guard var state = gestureState else {
-                return Unmanaged.passRetained(event)
+                return Unmanaged.passUnretained(event)
             }
             state.lastLocation = NSEvent.mouseLocation
             gestureState = state
@@ -191,7 +179,7 @@ final class GestureController {
             if let action = detectAction(from: state) {
                 commitTrigger(action, state: state)
             }
-            return gestureLockedUntilMouseUp ? nil : Unmanaged.passRetained(event)
+            return gestureLockedUntilMouseUp ? nil : Unmanaged.passUnretained(event)
 
         case .otherMouseUp:
             let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
@@ -199,13 +187,13 @@ final class GestureController {
                 return nil
             }
             guard buttonNumber == 2, settings.middleButtonGesturesEnabled else {
-                return Unmanaged.passRetained(event)
+                return Unmanaged.passUnretained(event)
             }
             defer { endTracking() }
             gestureLockedUntilMouseUp = false
             updateDebug("收到中键抬起", transient: true)
             guard let state = gestureState else {
-                return Unmanaged.passRetained(event)
+                return Unmanaged.passUnretained(event)
             }
             if state.hasTriggered {
                 lastMiddleClickTime = nil
@@ -215,7 +203,7 @@ final class GestureController {
             return nil
 
         default:
-            return Unmanaged.passRetained(event)
+            return Unmanaged.passUnretained(event)
         }
     }
 
@@ -242,9 +230,9 @@ final class GestureController {
         updateDebug("触发动作：\(action.description)")
         switch action {
         case .previousSpace:
-            triggerDesktopSwipe(direction: -1)
+            switchDesktop(.previous)
         case .nextSpace:
-            triggerDesktopSwipe(direction: 1)
+            switchDesktop(.next)
         case .missionControl:
             openMissionControl()
         }
@@ -256,63 +244,12 @@ final class GestureController {
         NSWorkspace.shared.openApplication(at: missionControlURL, configuration: configuration, completionHandler: nil)
     }
 
-    private func triggerDesktopSwipe(direction: Double) {
-        guard desktopSwipeTimer == nil else {
+    private func switchDesktop(_ direction: DesktopSwitcher.Direction) {
+        guard desktopSwitcher.switchDesktop(direction) else {
+            updateDebug("动作发送失败：无法切换桌面")
             return
         }
-
-        postDesktopSwipeEvent(phase: 1, progress: 0, velocity: 0, direction: direction)
-
-        var step = 0
-        let timer = DispatchSource.makeTimerSource(queue: .main)
-        timer.schedule(deadline: .now(), repeating: Constants.dockSwipeFrameInterval)
-        timer.setEventHandler { [weak self] in
-            guard let self else {
-                return
-            }
-
-            step += 1
-            let linearProgress = Double(step) / Double(Constants.dockSwipeSteps)
-            let easedProgress = linearProgress * linearProgress * (3 - 2 * linearProgress)
-            let progress = Constants.dockSwipeProgress * easedProgress
-            postDesktopSwipeEvent(
-                phase: 2,
-                progress: progress,
-                velocity: Constants.dockSwipeVelocity,
-                direction: direction
-            )
-
-            if step >= Constants.dockSwipeSteps {
-                postDesktopSwipeEvent(
-                    phase: 4,
-                    progress: Constants.dockSwipeProgress,
-                    velocity: Constants.dockSwipeVelocity,
-                    direction: direction
-                )
-                timer.cancel()
-                desktopSwipeTimer = nil
-            }
-        }
-        desktopSwipeTimer = timer
-        timer.resume()
-    }
-
-    private func postDesktopSwipeEvent(phase: Int64, progress: Double, velocity: Double, direction: Double) {
-        guard let event = CGEvent(source: nil) else {
-            updateDebug("动作发送失败：无法创建桌面切换事件")
-            desktopSwipeTimer?.cancel()
-            desktopSwipeTimer = nil
-            return
-        }
-
-        event.setIntegerValueField(Constants.cgsEventTypeField, value: 30)
-        event.setIntegerValueField(Constants.gestureHIDTypeField, value: 23)
-        event.setIntegerValueField(Constants.gesturePhaseField, value: phase)
-        event.setIntegerValueField(Constants.swipeMotionField, value: 1)
-        event.setDoubleValueField(Constants.swipeProgressField, value: direction * progress)
-        event.setDoubleValueField(Constants.swipeVelocityXField, value: direction * velocity)
-        event.setDoubleValueField(Constants.swipeVelocityYField, value: direction * velocity)
-        event.post(tap: .cgSessionEventTap)
+        updateDebug("桌面切换事件已发送")
     }
 
     private func handleMiddleClick(_ state: GestureState) {

@@ -37,11 +37,13 @@ final class NextScrollBackend: ScrollBackend {
 
     func start() {
         stop()
-        systemScrollDirectionManager.forceNaturalScrolling()
         createActiveTapIfNeeded()
         isListening = activeTap != nil
         if isListening {
-            lastDebugMessage = "滚动后端已就绪"
+            let adjustedSystemDirection = systemScrollDirectionManager.forceNaturalScrolling()
+            lastDebugMessage = adjustedSystemDirection
+                ? "滚动后端已就绪"
+                : "滚动监听已就绪，系统滚动方向调整失败"
         }
     }
 
