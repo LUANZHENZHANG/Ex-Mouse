@@ -10,7 +10,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var gestureController = GestureController(settings: settings) { [weak self] in
         self?.refreshMenu()
     }
+    private var permissionPollTimer: Timer?
 
+    private var permissionActionItem: NSMenuItem?
     private var permissionStatusItem: NSMenuItem?
     private var scrollStatusItem: NSMenuItem?
     private var gestureStatusItem: NSMenuItem?
@@ -26,13 +28,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
-        requestAccessibilityPermission(nil)
-        applyScrollSetting()
-        applyGestureSetting()
+        if PermissionManager.hasAccessibilityPermission {
+            activateEnabledFeatures()
+        } else {
+            requestAccessibilityPermission(nil)
+        }
         refreshMenu()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        permissionPollTimer?.invalidate()
         scrollController.stop()
         gestureController.stop()
     }
@@ -41,22 +46,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func requestAccessibilityPermission(_ sender: Any?) {
         NSApplication.shared.activate(ignoringOtherApps: true)
         PermissionManager.promptForAccessibilityIfNeeded()
-        refreshMenu()
+        startPermissionPolling()
     }
 
     @objc
     private func openAccessibilitySettings(_ sender: Any?) {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-    }
-
-    @objc
-    private func openInputMonitoringSettings(_ sender: Any?) {
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
-    }
-
-    @objc
-    private func openAutomationSettings(_ sender: Any?) {
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")!)
     }
 
     @objc
@@ -107,6 +102,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         permissionStatusItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         permissionStatusItem?.isEnabled = false
+        let permissionActionItem = NSMenuItem(
+            title: "开启辅助功能权限…",
+            action: #selector(requestAccessibilityPermission(_:)),
+            keyEquivalent: ""
+        )
+        permissionActionItem.target = self
+        self.permissionActionItem = permissionActionItem
         scrollStatusItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         scrollStatusItem?.isEnabled = false
         gestureStatusItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
@@ -162,7 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let debugMenu = NSMenu(title: "调试")
 
         let requestPermissionItem = NSMenuItem(
-            title: "重新申请辅助功能权限",
+            title: "申请并检查辅助功能权限",
             action: #selector(requestAccessibilityPermission(_:)),
             keyEquivalent: ""
         )
@@ -174,20 +176,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         )
         openAccessibilitySettingsItem.target = self
-
-        let openInputMonitoringSettingsItem = NSMenuItem(
-            title: "打开输入监控设置",
-            action: #selector(openInputMonitoringSettings(_:)),
-            keyEquivalent: ""
-        )
-        openInputMonitoringSettingsItem.target = self
-
-        let openAutomationSettingsItem = NSMenuItem(
-            title: "打开自动化设置",
-            action: #selector(openAutomationSettings(_:)),
-            keyEquivalent: ""
-        )
-        openAutomationSettingsItem.target = self
 
         settingsMenu.items = [
             scrollToggleItem,
@@ -205,8 +193,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .separator(),
             requestPermissionItem,
             openAccessibilitySettingsItem,
-            openInputMonitoringSettingsItem,
-            openAutomationSettingsItem,
         ]
         let debugSubmenuItem = NSMenuItem(title: "调试", action: nil, keyEquivalent: "")
         item.menu?.setSubmenu(debugMenu, for: debugSubmenuItem)
@@ -218,6 +204,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.menu?.items = [
             NSMenuItem(title: "顺鼠 Ex-Mouse", action: nil, keyEquivalent: ""),
             .separator(),
+            permissionActionItem,
             statusSubmenuItem,
             settingsSubmenuItem,
             debugSubmenuItem,
@@ -228,6 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func refreshMenu() {
         let hasPermission = PermissionManager.hasAccessibilityPermission
+        permissionActionItem?.isHidden = hasPermission
         permissionStatusItem?.title = hasPermission
             ? "辅助功能权限：已开启"
             : "辅助功能权限：未开启"
@@ -266,5 +254,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             gestureController.stop()
         }
+    }
+
+    private func startPermissionPolling() {
+        permissionPollTimer?.invalidate()
+        permissionPollTimer = Timer.scheduledTimer(
+            timeInterval: 1,
+            target: self,
+            selector: #selector(checkPermissionStatus(_:)),
+            userInfo: nil,
+            repeats: true
+        )
+    }
+
+    @objc
+    private func checkPermissionStatus(_ timer: Timer) {
+        guard PermissionManager.hasAccessibilityPermission else {
+            refreshMenu()
+            return
+        }
+
+        timer.invalidate()
+        permissionPollTimer = nil
+        activateEnabledFeatures()
+        refreshMenu()
+    }
+
+    private func activateEnabledFeatures() {
+        applyScrollSetting()
+        applyGestureSetting()
     }
 }

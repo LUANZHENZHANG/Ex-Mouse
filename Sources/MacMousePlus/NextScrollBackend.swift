@@ -24,8 +24,6 @@ final class NextScrollBackend: ScrollBackend {
     private let systemScrollDirectionManager = SystemScrollDirectionManager()
     private var activeTap: CFMachPort?
     private var activeRunLoopSource: CFRunLoopSource?
-    private var passiveTap: CFMachPort?
-    private var passiveRunLoopSource: CFRunLoopSource?
 
     private var lastTouchTimeNs: UInt64 = 0
     private var touchingCount = 0
@@ -40,9 +38,8 @@ final class NextScrollBackend: ScrollBackend {
     func start() {
         stop()
         systemScrollDirectionManager.forceNaturalScrolling()
-        createPassiveTapIfNeeded()
         createActiveTapIfNeeded()
-        isListening = activeTap != nil && passiveTap != nil
+        isListening = activeTap != nil
         if isListening {
             lastDebugMessage = "滚动后端已就绪"
         }
@@ -55,16 +52,8 @@ final class NextScrollBackend: ScrollBackend {
         if let source = activeRunLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
         }
-        if let tap = passiveTap {
-            CGEvent.tapEnable(tap: tap, enable: false)
-        }
-        if let source = passiveRunLoopSource {
-            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
-        }
         activeTap = nil
         activeRunLoopSource = nil
-        passiveTap = nil
-        passiveRunLoopSource = nil
         lastTouchTimeNs = 0
         touchingCount = 0
         lastSource = .mouse
@@ -73,42 +62,15 @@ final class NextScrollBackend: ScrollBackend {
         lastDebugMessage = "滚动后端已停止"
     }
 
-    private func createPassiveTapIfNeeded() {
+    private func createActiveTapIfNeeded() {
         guard let gestureType = CGEventType(rawValue: UInt32(NSEvent.EventType.gesture.rawValue)) else {
             lastDebugMessage = "无法识别 gesture 事件类型"
             return
         }
-        let events = CGEventMask(1 << gestureType.rawValue)
 
-        let callback: CGEventTapCallBack = { _, type, event, refcon in
-            let backend = Unmanaged<NextScrollBackend>.fromOpaque(refcon!).takeUnretainedValue()
-            return backend.handlePassiveEvent(type: type, event: event)
-        }
-
-        let refcon = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
-        guard let tap = CGEvent.tapCreate(
-            tap: .cgSessionEventTap,
-            place: .headInsertEventTap,
-            options: .listenOnly,
-            eventsOfInterest: events,
-            callback: callback,
-            userInfo: refcon
-        ) else {
-            lastDebugMessage = "被动手势监听创建失败"
-            return
-        }
-
-        let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
-        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: true)
-
-        passiveTap = tap
-        passiveRunLoopSource = source
-    }
-
-    private func createActiveTapIfNeeded() {
         let events: CGEventMask =
             (1 << CGEventType.scrollWheel.rawValue) |
+            (1 << gestureType.rawValue) |
             (1 << CGEventType.tapDisabledByTimeout.rawValue) |
             (1 << CGEventType.tapDisabledByUserInput.rawValue)
 
@@ -138,29 +100,21 @@ final class NextScrollBackend: ScrollBackend {
         activeRunLoopSource = source
     }
 
-    private func handlePassiveEvent(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
-        guard let gestureType = CGEventType(rawValue: UInt32(NSEvent.EventType.gesture.rawValue)),
-              type == gestureType,
-              let nsEvent = NSEvent(cgEvent: event) else {
-            return Unmanaged.passUnretained(event)
-        }
-
-        let touching = nsEvent.touches(matching: .touching, in: nil).count
-        if touching >= 2 {
-            touchingCount = max(touchingCount, touching)
-            lastTouchTimeNs = DispatchTime.now().uptimeNanoseconds
-        }
-        return Unmanaged.passUnretained(event)
-    }
-
     private func handleActiveEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap = activeTap {
                 CGEvent.tapEnable(tap: tap, enable: true)
             }
-            if let tap = passiveTap {
-                CGEvent.tapEnable(tap: tap, enable: true)
-            }
+            return Unmanaged.passUnretained(event)
+        }
+
+        if let gestureType = CGEventType(rawValue: UInt32(NSEvent.EventType.gesture.rawValue)),
+           type == gestureType {
+            recordTrackpadTouches(from: event)
+            return Unmanaged.passUnretained(event)
+        }
+
+        guard type == .scrollWheel else {
             return Unmanaged.passUnretained(event)
         }
 
@@ -180,6 +134,18 @@ final class NextScrollBackend: ScrollBackend {
             lastDebugMessage = "触控板放行：dx=\(dx) dy=\(dy)"
         }
         return Unmanaged.passUnretained(event)
+    }
+
+    private func recordTrackpadTouches(from event: CGEvent) {
+        guard let nsEvent = NSEvent(cgEvent: event) else {
+            return
+        }
+
+        let touching = nsEvent.touches(matching: .touching, in: nil).count
+        if touching >= 2 {
+            touchingCount = max(touchingCount, touching)
+            lastTouchTimeNs = DispatchTime.now().uptimeNanoseconds
+        }
     }
 
     private func classify(_ event: CGEvent) -> EventDeviceKind {

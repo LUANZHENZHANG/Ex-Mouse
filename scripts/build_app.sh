@@ -3,13 +3,20 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="$ROOT_DIR/.build/release"
-APP_DIR="$ROOT_DIR/dist/顺鼠.app"
+OUTPUT_APP_DIR="$ROOT_DIR/dist/顺鼠.app"
+TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/shunshu-app.XXXXXX")"
+APP_DIR="$TEMP_DIR/顺鼠.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 ICONSET_DIR="$ROOT_DIR/.build/AppIcon.iconset"
 ICON_FILE="$RESOURCES_DIR/AppIcon.icns"
 REPO_ICON_FILE="$ROOT_DIR/assets/AppIcon.png"
+
+cleanup() {
+  rm -rf "$TEMP_DIR"
+}
+trap cleanup EXIT
 
 cd "$ROOT_DIR"
 swift build -c release
@@ -56,14 +63,12 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
     <string>AppIcon</string>
     <key>CFBundleName</key>
     <string>Ex-Mouse</string>
-    <key>NSAppleEventsUsageDescription</key>
-    <string>顺鼠需要自动控制 System Events 来切换桌面和打开调度中心。</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.11</string>
+    <string>1.12</string>
     <key>CFBundleVersion</key>
-    <string>111</string>
+    <string>112</string>
     <key>LSUIElement</key>
     <true/>
 </dict>
@@ -73,4 +78,10 @@ PLIST
 chmod +x "$MACOS_DIR/MacMousePlus"
 xattr -cr "$APP_DIR"
 codesign --force --deep --sign - "$APP_DIR"
-echo "Built app bundle at: $APP_DIR"
+codesign --verify --deep --strict "$APP_DIR"
+
+rm -rf "$OUTPUT_APP_DIR"
+mkdir -p "$(dirname "$OUTPUT_APP_DIR")"
+ditto --norsrc --noextattr "$APP_DIR" "$OUTPUT_APP_DIR"
+codesign --verify --deep --strict "$OUTPUT_APP_DIR"
+echo "Built app bundle at: $OUTPUT_APP_DIR"

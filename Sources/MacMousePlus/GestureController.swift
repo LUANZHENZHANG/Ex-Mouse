@@ -37,14 +37,11 @@ final class GestureController {
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
-    private var globalMonitor: Any?
     private var trackingTimer: DispatchSourceTimer?
     private var gestureState: GestureState?
     private var gestureLockedUntilMouseUp = false
     private var swallowedOtherMouseUpButtons = Set<Int64>()
     private(set) var isListening = false
-    private(set) var tapListening = false
-    private(set) var globalListening = false
     private(set) var lastDebugMessage = "尚未收到事件"
 
     init(settings: SettingsStore, onStateChanged: @escaping () -> Void) {
@@ -65,18 +62,12 @@ final class GestureController {
         if let source = runLoopSource {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
         }
-        if let globalMonitor {
-            NSEvent.removeMonitor(globalMonitor)
-        }
         trackingTimer?.cancel()
         eventTap = nil
         runLoopSource = nil
-        globalMonitor = nil
         trackingTimer = nil
         gestureState = nil
         gestureLockedUntilMouseUp = false
-        tapListening = false
-        globalListening = false
         isListening = false
     }
 
@@ -92,8 +83,7 @@ final class GestureController {
 
     private func createListenersIfNeeded() {
         createEventTapIfNeeded()
-        createGlobalMonitorIfNeeded()
-        isListening = tapListening || globalListening
+        isListening = eventTap != nil
     }
 
     private func createEventTapIfNeeded() {
@@ -122,9 +112,8 @@ final class GestureController {
             callback: callback,
             userInfo: refcon
         ) else {
-            tapListening = false
-            lastDebugMessage = "底层监听创建失败"
-            isListening = globalListening
+            lastDebugMessage = "监听创建失败，请开启辅助功能权限"
+            isListening = false
             onStateChanged()
             return
         }
@@ -135,36 +124,8 @@ final class GestureController {
 
         eventTap = tap
         runLoopSource = source
-        tapListening = true
         isListening = true
-        lastDebugMessage = "底层监听已建立"
-        onStateChanged()
-    }
-
-    private func createGlobalMonitorIfNeeded() {
-        guard globalMonitor == nil else {
-            return
-        }
-
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(
-            matching: [.otherMouseDown, .otherMouseDragged, .otherMouseUp]
-        ) { [weak self] event in
-            self?.handleGlobalEvent(event)
-        }
-
-        if globalMonitor != nil {
-            globalListening = true
-            isListening = true
-            if !tapListening {
-                lastDebugMessage = "已切换到全局监听兜底"
-            }
-        } else {
-            globalListening = false
-            isListening = tapListening
-            if !tapListening {
-                lastDebugMessage = "全局监听也创建失败"
-            }
-        }
+        lastDebugMessage = "辅助功能监听已建立"
         onStateChanged()
     }
 
@@ -278,22 +239,25 @@ final class GestureController {
     }
 
     private func triggerSystemShortcut(arrow: String) {
-        let scriptSource = """
-        tell application "System Events"
-            key code \(keyCode(for: arrow)) using control down
-        end tell
-        """
-
-        if let script = NSAppleScript(source: scriptSource) {
-            var error: NSDictionary?
-            script.executeAndReturnError(&error)
-            if let error {
-                let message = error[NSAppleScript.errorMessage] as? String ?? "未知错误"
-                updateDebug("动作发送失败：\(message)")
-            }
-        } else {
-            updateDebug("动作发送失败：脚本创建失败")
+        guard let source = CGEventSource(stateID: .hidSystemState),
+              let keyDown = CGEvent(
+                keyboardEventSource: source,
+                virtualKey: CGKeyCode(keyCode(for: arrow)),
+                keyDown: true
+              ),
+              let keyUp = CGEvent(
+                keyboardEventSource: source,
+                virtualKey: CGKeyCode(keyCode(for: arrow)),
+                keyDown: false
+              ) else {
+            updateDebug("动作发送失败：无法创建键盘事件")
+            return
         }
+
+        keyDown.flags = .maskControl
+        keyUp.flags = .maskControl
+        keyDown.post(tap: .cghidEventTap)
+        keyUp.post(tap: .cghidEventTap)
     }
 
     private func keyCode(for arrow: String) -> Int {
@@ -306,54 +270,6 @@ final class GestureController {
             return 126
         default:
             return 124
-        }
-    }
-
-    private func handleGlobalEvent(_ event: NSEvent) {
-        guard settings.gesturesEnabled else {
-            return
-        }
-
-        switch event.type {
-        case .otherMouseDown:
-            if settings.sideButtonsEnabled, sideButtonAction(for: Int64(event.buttonNumber)) != nil {
-                return
-            }
-            guard event.buttonNumber == 2, settings.middleButtonGesturesEnabled else {
-                return
-            }
-            gestureLockedUntilMouseUp = false
-            let location = NSEvent.mouseLocation
-            beginTracking(at: location, source: "全局监听")
-            updateDebug("全局监听：中键按下")
-
-        case .otherMouseDragged:
-            guard event.buttonNumber == 2, settings.middleButtonGesturesEnabled else {
-                return
-            }
-            guard !gestureLockedUntilMouseUp else {
-                return
-            }
-            guard var state = gestureState else {
-                return
-            }
-            let location = NSEvent.mouseLocation
-            state.lastLocation = location
-            gestureState = state
-            if let action = detectAction(from: state) {
-                commitTrigger(action, state: state)
-            }
-
-        case .otherMouseUp:
-            guard event.buttonNumber == 2 else {
-                return
-            }
-            gestureLockedUntilMouseUp = false
-            updateDebug("全局监听：中键抬起", transient: true)
-            endTracking()
-
-        default:
-            break
         }
     }
 
