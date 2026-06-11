@@ -254,8 +254,9 @@ final class GestureController {
             return
         }
 
-        keyDown.flags = .maskControl
-        keyUp.flags = .maskControl
+        let shortcutFlags: CGEventFlags = [.maskControl, .maskSecondaryFn]
+        keyDown.flags = shortcutFlags
+        keyUp.flags = shortcutFlags
         keyDown.post(tap: .cghidEventTap)
         keyUp.post(tap: .cghidEventTap)
     }

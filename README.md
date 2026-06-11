@@ -14,7 +14,8 @@
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-green"></a>
 </p>
 
-我不愿意使用太复杂的 Mac 鼠标设置软件，所以让 Codex 设计了这个小工具。
+我在 Mac 使用中发现一些小问题：Magic Mouse 不好用、普通鼠标在 Mac 上无法使用手势，
+滚轮方向也和触控板相反。我不愿意使用太复杂的 Mac 鼠标设置软件，所以让 Codex 设计了这个小工具。
 
 顺鼠 Ex-Mouse 重点是不占资源、省空间、单机、不联网，主要用于：
 
@@ -36,9 +37,9 @@
 
 ## 下载
 
-**[下载顺鼠 Ex-Mouse 1.12 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.12/Ex-Mouse-1.12-macOS-arm64.dmg)**
+**[下载顺鼠 Ex-Mouse 1.13 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.13/Ex-Mouse-1.13-macOS-arm64.dmg)**
 
-- 文件名：`Ex-Mouse-1.12-macOS-arm64.dmg`
+- 文件名：`Ex-Mouse-1.13-macOS-arm64.dmg`
 - 大小：约 2 MB
 - 系统：macOS 13 Ventura 或更高版本
 - 设备：Apple Silicon（M 系列）Mac
