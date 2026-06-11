@@ -7,8 +7,11 @@ final class GestureController {
         static let horizontalTriggerDistance: CGFloat = 96
         static let verticalTriggerDistance: CGFloat = 56
         static let directionBias: CGFloat = 18
+        static let middleClickMovementTolerance: CGFloat = 8
+        static let dockSwipeSteps = 16
+        static let dockSwipeFrameInterval = DispatchTimeInterval.milliseconds(16)
         static let dockSwipeProgress = 0.25
-        static let dockSwipeVelocity = 2_000.0
+        static let dockSwipeVelocity = 0.0
         static let cgsEventTypeField = CGEventField(rawValue: 55)!
         static let gestureHIDTypeField = CGEventField(rawValue: 110)!
         static let swipeMotionField = CGEventField(rawValue: 123)!
@@ -47,8 +50,10 @@ final class GestureController {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var trackingTimer: DispatchSourceTimer?
+    private var desktopSwipeTimer: DispatchSourceTimer?
     private var gestureState: GestureState?
     private var gestureLockedUntilMouseUp = false
+    private var lastMiddleClickTime: TimeInterval?
     private var swallowedOtherMouseUpButtons = Set<Int64>()
     private(set) var isListening = false
     private(set) var lastDebugMessage = "尚未收到事件"
@@ -72,11 +77,14 @@ final class GestureController {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
         }
         trackingTimer?.cancel()
+        desktopSwipeTimer?.cancel()
         eventTap = nil
         runLoopSource = nil
         trackingTimer = nil
+        desktopSwipeTimer = nil
         gestureState = nil
         gestureLockedUntilMouseUp = false
+        lastMiddleClickTime = nil
         isListening = false
     }
 
@@ -200,9 +208,10 @@ final class GestureController {
                 return Unmanaged.passRetained(event)
             }
             if state.hasTriggered {
+                lastMiddleClickTime = nil
                 return nil
             }
-            updateDebug("中键点击已拦截")
+            handleMiddleClick(state)
             return nil
 
         default:
@@ -248,29 +257,84 @@ final class GestureController {
     }
 
     private func triggerDesktopSwipe(direction: Double) {
-        for phase in [1, 2, 4] {
-            guard let event = CGEvent(source: nil) else {
-                updateDebug("动作发送失败：无法创建桌面切换事件")
+        guard desktopSwipeTimer == nil else {
+            return
+        }
+
+        postDesktopSwipeEvent(phase: 1, progress: 0, velocity: 0, direction: direction)
+
+        var step = 0
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now(), repeating: Constants.dockSwipeFrameInterval)
+        timer.setEventHandler { [weak self] in
+            guard let self else {
                 return
             }
 
-            event.setIntegerValueField(Constants.cgsEventTypeField, value: 30)
-            event.setIntegerValueField(Constants.gestureHIDTypeField, value: 23)
-            event.setIntegerValueField(Constants.gesturePhaseField, value: Int64(phase))
-            event.setIntegerValueField(Constants.swipeMotionField, value: 1)
-            event.setDoubleValueField(
-                Constants.swipeProgressField,
-                value: direction * Constants.dockSwipeProgress
+            step += 1
+            let linearProgress = Double(step) / Double(Constants.dockSwipeSteps)
+            let easedProgress = linearProgress * linearProgress * (3 - 2 * linearProgress)
+            let progress = Constants.dockSwipeProgress * easedProgress
+            postDesktopSwipeEvent(
+                phase: 2,
+                progress: progress,
+                velocity: Constants.dockSwipeVelocity,
+                direction: direction
             )
-            event.setDoubleValueField(
-                Constants.swipeVelocityXField,
-                value: direction * Constants.dockSwipeVelocity
-            )
-            event.setDoubleValueField(
-                Constants.swipeVelocityYField,
-                value: direction * Constants.dockSwipeVelocity
-            )
-            event.post(tap: .cgSessionEventTap)
+
+            if step >= Constants.dockSwipeSteps {
+                postDesktopSwipeEvent(
+                    phase: 4,
+                    progress: Constants.dockSwipeProgress,
+                    velocity: Constants.dockSwipeVelocity,
+                    direction: direction
+                )
+                timer.cancel()
+                desktopSwipeTimer = nil
+            }
+        }
+        desktopSwipeTimer = timer
+        timer.resume()
+    }
+
+    private func postDesktopSwipeEvent(phase: Int64, progress: Double, velocity: Double, direction: Double) {
+        guard let event = CGEvent(source: nil) else {
+            updateDebug("动作发送失败：无法创建桌面切换事件")
+            desktopSwipeTimer?.cancel()
+            desktopSwipeTimer = nil
+            return
+        }
+
+        event.setIntegerValueField(Constants.cgsEventTypeField, value: 30)
+        event.setIntegerValueField(Constants.gestureHIDTypeField, value: 23)
+        event.setIntegerValueField(Constants.gesturePhaseField, value: phase)
+        event.setIntegerValueField(Constants.swipeMotionField, value: 1)
+        event.setDoubleValueField(Constants.swipeProgressField, value: direction * progress)
+        event.setDoubleValueField(Constants.swipeVelocityXField, value: direction * velocity)
+        event.setDoubleValueField(Constants.swipeVelocityYField, value: direction * velocity)
+        event.post(tap: .cgSessionEventTap)
+    }
+
+    private func handleMiddleClick(_ state: GestureState) {
+        let movement = hypot(
+            state.lastLocation.x - state.downLocation.x,
+            state.lastLocation.y - state.downLocation.y
+        )
+        guard movement <= Constants.middleClickMovementTolerance else {
+            lastMiddleClickTime = nil
+            updateDebug("中键移动未形成手势")
+            return
+        }
+
+        let now = ProcessInfo.processInfo.systemUptime
+        if let lastMiddleClickTime,
+           now - lastMiddleClickTime <= NSEvent.doubleClickInterval {
+            self.lastMiddleClickTime = nil
+            updateDebug("中键双击：调度中心")
+            openMissionControl()
+        } else {
+            lastMiddleClickTime = now
+            updateDebug("收到第一次中键点击")
         }
     }
 

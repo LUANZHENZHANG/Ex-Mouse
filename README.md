@@ -37,9 +37,9 @@
 
 ## 下载
 
-**[下载顺鼠 Ex-Mouse 1.14 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.14/Ex-Mouse-1.14-macOS-arm64.dmg)**
+**[下载顺鼠 Ex-Mouse 1.15 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.15/Ex-Mouse-1.15-macOS-arm64.dmg)**
 
-- 文件名：`Ex-Mouse-1.14-macOS-arm64.dmg`
+- 文件名：`Ex-Mouse-1.15-macOS-arm64.dmg`
 - 大小：约 2 MB
 - 系统：macOS 13 Ventura 或更高版本
 - 设备：Apple Silicon（M 系列）Mac
@@ -124,7 +124,7 @@
 
 - **启用独立滚动方向**：保持触控板自然滚动，只反转鼠标滚轮。
 - **启用手势功能**：总开关，关闭后不监听中键和侧键手势。
-- **启用中键滑动手势**：按住中键左右滑动切换桌面，纵向滑动打开调度中心。
+- **启用中键滑动手势**：按住中键左右滑动切换桌面，纵向滑动或双击中键打开调度中心。
 - **启用侧键切换桌面**：使用鼠标侧键切换上一个或下一个桌面。
 
 ### 调试
