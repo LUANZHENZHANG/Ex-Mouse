@@ -37,9 +37,9 @@
 
 ## 下载
 
-**[下载顺鼠 Ex-Mouse 1.13 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.13/Ex-Mouse-1.13-macOS-arm64.dmg)**
+**[下载顺鼠 Ex-Mouse 1.14 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.14/Ex-Mouse-1.14-macOS-arm64.dmg)**
 
-- 文件名：`Ex-Mouse-1.13-macOS-arm64.dmg`
+- 文件名：`Ex-Mouse-1.14-macOS-arm64.dmg`
 - 大小：约 2 MB
 - 系统：macOS 13 Ventura 或更高版本
 - 设备：Apple Silicon（M 系列）Mac

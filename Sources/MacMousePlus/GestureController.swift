@@ -7,6 +7,15 @@ final class GestureController {
         static let horizontalTriggerDistance: CGFloat = 96
         static let verticalTriggerDistance: CGFloat = 56
         static let directionBias: CGFloat = 18
+        static let dockSwipeProgress = 0.25
+        static let dockSwipeVelocity = 2_000.0
+        static let cgsEventTypeField = CGEventField(rawValue: 55)!
+        static let gestureHIDTypeField = CGEventField(rawValue: 110)!
+        static let swipeMotionField = CGEventField(rawValue: 123)!
+        static let swipeProgressField = CGEventField(rawValue: 124)!
+        static let swipeVelocityXField = CGEventField(rawValue: 129)!
+        static let swipeVelocityYField = CGEventField(rawValue: 130)!
+        static let gesturePhaseField = CGEventField(rawValue: 132)!
     }
 
     private enum GestureAction {
@@ -224,9 +233,9 @@ final class GestureController {
         updateDebug("触发动作：\(action.description)")
         switch action {
         case .previousSpace:
-            triggerSystemShortcut(arrow: "left")
+            triggerDesktopSwipe(direction: -1)
         case .nextSpace:
-            triggerSystemShortcut(arrow: "right")
+            triggerDesktopSwipe(direction: 1)
         case .missionControl:
             openMissionControl()
         }
@@ -238,39 +247,30 @@ final class GestureController {
         NSWorkspace.shared.openApplication(at: missionControlURL, configuration: configuration, completionHandler: nil)
     }
 
-    private func triggerSystemShortcut(arrow: String) {
-        guard let source = CGEventSource(stateID: .hidSystemState),
-              let keyDown = CGEvent(
-                keyboardEventSource: source,
-                virtualKey: CGKeyCode(keyCode(for: arrow)),
-                keyDown: true
-              ),
-              let keyUp = CGEvent(
-                keyboardEventSource: source,
-                virtualKey: CGKeyCode(keyCode(for: arrow)),
-                keyDown: false
-              ) else {
-            updateDebug("动作发送失败：无法创建键盘事件")
-            return
-        }
+    private func triggerDesktopSwipe(direction: Double) {
+        for phase in [1, 2, 4] {
+            guard let event = CGEvent(source: nil) else {
+                updateDebug("动作发送失败：无法创建桌面切换事件")
+                return
+            }
 
-        let shortcutFlags: CGEventFlags = [.maskControl, .maskSecondaryFn]
-        keyDown.flags = shortcutFlags
-        keyUp.flags = shortcutFlags
-        keyDown.post(tap: .cghidEventTap)
-        keyUp.post(tap: .cghidEventTap)
-    }
-
-    private func keyCode(for arrow: String) -> Int {
-        switch arrow {
-        case "left":
-            return 123
-        case "right":
-            return 124
-        case "up":
-            return 126
-        default:
-            return 124
+            event.setIntegerValueField(Constants.cgsEventTypeField, value: 30)
+            event.setIntegerValueField(Constants.gestureHIDTypeField, value: 23)
+            event.setIntegerValueField(Constants.gesturePhaseField, value: Int64(phase))
+            event.setIntegerValueField(Constants.swipeMotionField, value: 1)
+            event.setDoubleValueField(
+                Constants.swipeProgressField,
+                value: direction * Constants.dockSwipeProgress
+            )
+            event.setDoubleValueField(
+                Constants.swipeVelocityXField,
+                value: direction * Constants.dockSwipeVelocity
+            )
+            event.setDoubleValueField(
+                Constants.swipeVelocityYField,
+                value: direction * Constants.dockSwipeVelocity
+            )
+            event.post(tap: .cgSessionEventTap)
         }
     }
 
