@@ -22,6 +22,12 @@
 
 如果使用过程中有任何不合适的地方，请提醒我。谢谢！
 
+## 功能演示
+
+<p align="center">
+  <img src="assets/ex-mouse-demo.gif" width="600" alt="顺鼠 Ex-Mouse 功能演示">
+</p>
+
 ## 目录
 
 - [下载](#下载)
