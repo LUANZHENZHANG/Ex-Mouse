@@ -1,7 +1,7 @@
 # 顺鼠 Ex-Mouse
 
 <p align="center">
-  <img src="assets/AppIcon.png" width="128" alt="顺鼠 Ex-Mouse 应用图标">
+  <img src="assets/AppIcon-1.20.png" width="128" alt="顺鼠 Ex-Mouse 应用图标">
 </p>
 
 <p align="center"><strong>500K羽量级、不联网、无隐私风险，让鼠标和触控板一样丝滑！</strong></p>
