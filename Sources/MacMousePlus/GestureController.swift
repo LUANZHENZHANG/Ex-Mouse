@@ -164,7 +164,7 @@ final class GestureController {
             let location = NSEvent.mouseLocation
             beginTracking(at: location, source: "底层监听")
             updateDebug("收到中键按下")
-            return nil
+            return gestureLockedUntilMouseUp ? nil : Unmanaged.passUnretained(event)
 
         case .otherMouseDragged:
             guard event.getIntegerValueField(.mouseEventButtonNumber) == 2, middleButtonHandlingEnabled else {
@@ -182,7 +182,7 @@ final class GestureController {
             if settings.middleGestureEnabled, let action = detectAction(from: state) {
                 commitTrigger(action, state: state)
             }
-            return gestureLockedUntilMouseUp ? nil : Unmanaged.passUnretained(event)
+            return nil
 
         case .otherMouseUp:
             let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
