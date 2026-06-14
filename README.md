@@ -37,7 +37,7 @@
 
 ## 下载
 
-**[下载顺鼠 Ex-Mouse 1.19 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.19/Ex-Mouse-1.19-macOS-arm64.dmg)**
+**[下载顺鼠 Ex-Mouse 1.20 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.20/Ex-Mouse-1.20-macOS-arm64.dmg)**
 
 适用于 macOS 13 或更高版本的 Apple Silicon（M 系列）Mac。
 
