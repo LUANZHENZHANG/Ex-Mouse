@@ -37,7 +37,7 @@
 
 ## 下载
 
-**[下载顺鼠 Ex-Mouse 1.18 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.18/Ex-Mouse-1.18-macOS-arm64.dmg)**
+**[下载顺鼠 Ex-Mouse 1.19 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.19/Ex-Mouse-1.19-macOS-arm64.dmg)**
 
 适用于 macOS 13 或更高版本的 Apple Silicon（M 系列）Mac。
 
@@ -69,6 +69,7 @@
 - **启用滚轮独立滚动方向**：让鼠标滚轮与触控板各自保持顺手的方向。
 - **启用中键+手势功能**：按住中键左右滑动切换桌面，上下滑动打开或关闭调度中心。
 - **启用中键侧键快捷键**：使用侧键切换桌面，双击中键打开或关闭调度中心。
+- 关闭 **中键+手势功能** 后，中键会完整交给 Blender 等软件，不影响模型旋转等操作。
 - **详情**：查看作者、版本、联系方式、项目简介和使用演示。
 - **调试**：查看最近一次处理结果，并可检查或修复授权。
 - **退出**：停止顺鼠。
