@@ -4,7 +4,9 @@
   <img src="assets/AppIcon.png" width="128" alt="顺鼠 Ex-Mouse 应用图标">
 </p>
 
-<p align="center">轻量，不联网，让鼠标和触控板一样丝滑。</p>
+<p align="center"><strong>500K羽量级、不联网、无隐私风险，让鼠标和触控板一样丝滑！</strong></p>
+
+<p align="center">各项功能可单独关闭，以防快捷键、手势与其他软件冲突。</p>
 
 我在 Mac 使用中发现一些小问题：Magic Mouse 不好用、普通鼠标在 Mac 上无法使用手势、滚轮方向也和触控板相反。
 
@@ -18,6 +20,12 @@
 
 这个项目从前到后都是 Codex 帮我完成的。我自己用着挺好，所以分享给有同样需要的朋友。
 如果使用中有任何问题，请提醒我。谢谢！
+
+## 功能演示
+
+<p align="center">
+  <img src="assets/ex-mouse-demo.gif" width="600" alt="顺鼠 Ex-Mouse 功能演示">
+</p>
 
 ## 目录
 
