@@ -12,6 +12,7 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 ICONSET_DIR="$ROOT_DIR/.build/AppIcon.iconset"
 ICON_FILE="$RESOURCES_DIR/AppIcon.icns"
 REPO_ICON_FILE="$ROOT_DIR/assets/AppIcon.png"
+DEMO_FILE="$ROOT_DIR/assets/ex-mouse-demo-app.gif"
 
 cleanup() {
   rm -rf "$TEMP_DIR"
@@ -45,6 +46,10 @@ fi
 
 iconutil -c icns "$ICONSET_DIR" -o "$ICON_FILE"
 
+if [[ -f "$DEMO_FILE" ]]; then
+  cp "$DEMO_FILE" "$RESOURCES_DIR/ExMouseDemo.gif"
+fi
+
 cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -67,9 +72,9 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.16</string>
+    <string>1.17</string>
     <key>CFBundleVersion</key>
-    <string>116</string>
+    <string>117</string>
     <key>LSUIElement</key>
     <true/>
 </dict>

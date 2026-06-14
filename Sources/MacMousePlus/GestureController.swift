@@ -81,7 +81,10 @@ final class GestureController {
             createListenersIfNeeded()
         }
         if let tap = eventTap {
-            CGEvent.tapEnable(tap: tap, enable: settings.gesturesEnabled)
+            CGEvent.tapEnable(tap: tap, enable: settings.gestureListenerEnabled)
+        }
+        if !settings.shortcutEnabled {
+            lastMiddleClickTime = nil
         }
         onStateChanged()
     }
@@ -125,7 +128,7 @@ final class GestureController {
 
         let source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
-        CGEvent.tapEnable(tap: tap, enable: settings.gesturesEnabled)
+        CGEvent.tapEnable(tap: tap, enable: settings.gestureListenerEnabled)
 
         eventTap = tap
         runLoopSource = source
@@ -137,24 +140,24 @@ final class GestureController {
     private func handleEvent(proxy: CGEventTapProxy, type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
             if let tap = eventTap {
-                CGEvent.tapEnable(tap: tap, enable: settings.gesturesEnabled)
+                CGEvent.tapEnable(tap: tap, enable: settings.gestureListenerEnabled)
             }
             return Unmanaged.passUnretained(event)
         }
 
-        guard settings.gesturesEnabled, PermissionManager.hasAccessibilityPermission else {
+        guard settings.gestureListenerEnabled, PermissionManager.hasAccessibilityPermission else {
             return Unmanaged.passUnretained(event)
         }
 
         switch type {
         case .otherMouseDown:
             let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
-            if settings.sideButtonsEnabled, let action = sideButtonAction(for: buttonNumber) {
+            if settings.shortcutEnabled, let action = sideButtonAction(for: buttonNumber) {
                 swallowedOtherMouseUpButtons.insert(buttonNumber)
                 trigger(action)
                 return nil
             }
-            guard buttonNumber == 2, settings.middleButtonGesturesEnabled else {
+            guard buttonNumber == 2, middleButtonHandlingEnabled else {
                 return Unmanaged.passUnretained(event)
             }
             gestureLockedUntilMouseUp = false
@@ -164,7 +167,7 @@ final class GestureController {
             return nil
 
         case .otherMouseDragged:
-            guard event.getIntegerValueField(.mouseEventButtonNumber) == 2, settings.middleButtonGesturesEnabled else {
+            guard event.getIntegerValueField(.mouseEventButtonNumber) == 2, middleButtonHandlingEnabled else {
                 return Unmanaged.passUnretained(event)
             }
             guard !gestureLockedUntilMouseUp else {
@@ -176,17 +179,17 @@ final class GestureController {
             state.lastLocation = NSEvent.mouseLocation
             gestureState = state
 
-            if let action = detectAction(from: state) {
+            if settings.middleGestureEnabled, let action = detectAction(from: state) {
                 commitTrigger(action, state: state)
             }
-            return gestureLockedUntilMouseUp ? nil : Unmanaged.passUnretained(event)
+            return nil
 
         case .otherMouseUp:
             let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
             if swallowedOtherMouseUpButtons.remove(buttonNumber) != nil {
                 return nil
             }
-            guard buttonNumber == 2, settings.middleButtonGesturesEnabled else {
+            guard buttonNumber == 2, middleButtonHandlingEnabled else {
                 return Unmanaged.passUnretained(event)
             }
             defer { endTracking() }
@@ -199,7 +202,11 @@ final class GestureController {
                 lastMiddleClickTime = nil
                 return nil
             }
-            handleMiddleClick(state)
+            if settings.shortcutEnabled {
+                handleMiddleClick(state)
+            } else {
+                updateDebug("中键手势未触发")
+            }
             return nil
 
         default:
@@ -297,6 +304,9 @@ final class GestureController {
     }
 
     private func pollMouseLocation(source: String) {
+        guard settings.middleGestureEnabled else {
+            return
+        }
         guard var state = gestureState else {
             return
         }
@@ -336,6 +346,10 @@ final class GestureController {
 
     private func isMeaningfulDebug(_ message: String) -> Bool {
         message.contains("识别为") || message.contains("触发动作") || message.contains("轮询识别成功")
+    }
+
+    private var middleButtonHandlingEnabled: Bool {
+        settings.middleGestureEnabled || settings.shortcutEnabled
     }
 
     private func sideButtonAction(for buttonNumber: Int64) -> GestureAction? {

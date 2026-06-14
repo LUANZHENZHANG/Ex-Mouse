@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var gestureController = GestureController(settings: settings) { [weak self] in
         self?.refreshMenu()
     }
+    private let detailsWindowController = DetailsWindowController()
     private var permissionPollTimer: Timer?
 
     private var permissionActionItem: NSMenuItem?
@@ -19,10 +20,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var debugStatusItem: NSMenuItem?
     private var gestureDebugStatusItem: NSMenuItem?
     private var scrollToggleItem: NSMenuItem?
-    private var gestureMasterToggleItem: NSMenuItem?
-    private var gesturesToggleItem: NSMenuItem?
-    private var sideButtonsToggleItem: NSMenuItem?
-    private var statusSubmenuItem: NSMenuItem?
+    private var middleGestureToggleItem: NSMenuItem?
+    private var shortcutToggleItem: NSMenuItem?
     private var settingsSubmenuItem: NSMenuItem?
     private var debugSubmenuItem: NSMenuItem?
 
@@ -62,24 +61,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc
-    private func toggleGestures(_ sender: Any?) {
-        settings.gesturesEnabled.toggle()
+    private func toggleMiddleGestures(_ sender: Any?) {
+        settings.middleGestureEnabled.toggle()
         applyGestureSetting()
         refreshMenu()
     }
 
     @objc
-    private func toggleMiddleGestures(_ sender: Any?) {
-        settings.middleButtonGesturesEnabled.toggle()
-        gestureController.reloadSettings()
+    private func toggleShortcuts(_ sender: Any?) {
+        settings.shortcutEnabled.toggle()
+        applyGestureSetting()
         refreshMenu()
     }
 
     @objc
-    private func toggleSideButtons(_ sender: Any?) {
-        settings.sideButtonsEnabled.toggle()
-        gestureController.reloadSettings()
-        refreshMenu()
+    private func showDetails(_ sender: Any?) {
+        detailsWindowController.show()
     }
 
     @objc
@@ -119,46 +116,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         gestureDebugStatusItem?.isEnabled = false
 
         let scrollToggleItem = NSMenuItem(
-            title: "启用独立滚动方向",
+            title: "启用滚轮独立滚动方向",
             action: #selector(toggleScroll(_:)),
             keyEquivalent: ""
         )
         scrollToggleItem.target = self
         self.scrollToggleItem = scrollToggleItem
 
-        let gestureMasterToggleItem = NSMenuItem(
-            title: "启用手势功能",
-            action: #selector(toggleGestures(_:)),
-            keyEquivalent: ""
-        )
-        gestureMasterToggleItem.target = self
-        self.gestureMasterToggleItem = gestureMasterToggleItem
-
-        let gesturesToggleItem = NSMenuItem(
-            title: "启用中键滑动手势",
+        let middleGestureToggleItem = NSMenuItem(
+            title: "启用中键+手势功能",
             action: #selector(toggleMiddleGestures(_:)),
             keyEquivalent: ""
         )
-        gesturesToggleItem.target = self
-        self.gesturesToggleItem = gesturesToggleItem
+        middleGestureToggleItem.target = self
+        self.middleGestureToggleItem = middleGestureToggleItem
 
-        let sideButtonsToggleItem = NSMenuItem(
-            title: "启用侧键切换桌面",
-            action: #selector(toggleSideButtons(_:)),
+        let shortcutToggleItem = NSMenuItem(
+            title: "启用中键侧键快捷键",
+            action: #selector(toggleShortcuts(_:)),
             keyEquivalent: ""
         )
-        sideButtonsToggleItem.target = self
-        self.sideButtonsToggleItem = sideButtonsToggleItem
-
-        let statusMenu = NSMenu(title: "状态")
-        statusMenu.items = [
-            permissionStatusItem!,
-            scrollStatusItem!,
-            gestureStatusItem!,
-        ]
-        let statusSubmenuItem = NSMenuItem(title: "状态", action: nil, keyEquivalent: "")
-        item.menu?.setSubmenu(statusMenu, for: statusSubmenuItem)
-        self.statusSubmenuItem = statusSubmenuItem
+        shortcutToggleItem.target = self
+        self.shortcutToggleItem = shortcutToggleItem
 
         let settingsMenu = NSMenu(title: "设置")
         let debugMenu = NSMenu(title: "调试")
@@ -179,9 +158,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         settingsMenu.items = [
             scrollToggleItem,
-            gestureMasterToggleItem,
-            gesturesToggleItem,
-            sideButtonsToggleItem,
+            middleGestureToggleItem,
+            shortcutToggleItem,
         ]
         let settingsSubmenuItem = NSMenuItem(title: "设置", action: nil, keyEquivalent: "")
         item.menu?.setSubmenu(settingsMenu, for: settingsSubmenuItem)
@@ -200,14 +178,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let quitItem = NSMenuItem(title: "退出", action: #selector(quitApp(_:)), keyEquivalent: "q")
         quitItem.target = self
+        let detailsItem = NSMenuItem(title: "详情…", action: #selector(showDetails(_:)), keyEquivalent: "")
+        detailsItem.target = self
 
         item.menu?.items = [
             NSMenuItem(title: "顺鼠 Ex-Mouse", action: nil, keyEquivalent: ""),
             .separator(),
             permissionActionItem,
-            statusSubmenuItem,
+            permissionStatusItem!,
+            scrollStatusItem!,
+            gestureStatusItem!,
+            .separator(),
             settingsSubmenuItem,
             debugSubmenuItem,
+            detailsItem,
             .separator(),
             quitItem,
         ]
@@ -224,18 +208,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             : scrollController.isListening
             ? "滚动监听：已就绪"
             : "滚动监听：创建失败"
-        gestureStatusItem?.title = !settings.gesturesEnabled
-            ? "手势功能：已关闭"
+        gestureStatusItem?.title = !settings.gestureListenerEnabled
+            ? "鼠标功能：已关闭"
             : gestureController.isListening
-            ? "手势监听：已就绪"
-            : "手势监听：创建失败"
+            ? "鼠标监听：已就绪"
+            : "鼠标监听：创建失败"
         debugStatusItem?.title = "调试：" + scrollController.backendName + " | " + scrollController.lastDebugMessage
         gestureDebugStatusItem?.title = "手势：" + gestureController.lastDebugMessage
         scrollToggleItem?.state = settings.scrollEnabled ? .on : .off
-        gestureMasterToggleItem?.state = settings.gesturesEnabled ? .on : .off
-        gesturesToggleItem?.state = settings.middleButtonGesturesEnabled ? .on : .off
-        sideButtonsToggleItem?.state = settings.sideButtonsEnabled ? .on : .off
-        statusSubmenuItem?.title = "状态"
+        middleGestureToggleItem?.state = settings.middleGestureEnabled ? .on : .off
+        shortcutToggleItem?.state = settings.shortcutEnabled ? .on : .off
         settingsSubmenuItem?.title = "设置"
         debugSubmenuItem?.title = "调试"
     }
@@ -249,8 +231,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func applyGestureSetting() {
-        if settings.gesturesEnabled {
-            gestureController.start()
+        if settings.gestureListenerEnabled {
+            if gestureController.isListening {
+                gestureController.reloadSettings()
+            } else {
+                gestureController.start()
+            }
         } else {
             gestureController.stop()
         }
