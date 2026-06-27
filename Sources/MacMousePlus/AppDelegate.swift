@@ -22,11 +22,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var scrollToggleItem: NSMenuItem?
     private var middleGestureToggleItem: NSMenuItem?
     private var shortcutToggleItem: NSMenuItem?
+    private var loginItemStatusItem: NSMenuItem?
     private var settingsSubmenuItem: NSMenuItem?
     private var debugSubmenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
+        _ = LoginItemManager.ensureRegistered()
         if PermissionManager.hasAccessibilityPermission {
             activateEnabledFeatures()
         } else {
@@ -98,6 +100,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc
+    private func openLoginItemSettings(_ sender: Any?) {
+        LoginItemManager.openSettings()
+    }
+
+    @objc
     private func quitApp(_ sender: Any?) {
         NSApplication.shared.terminate(nil)
     }
@@ -128,6 +135,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         scrollStatusItem?.isEnabled = false
         gestureStatusItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         gestureStatusItem?.isEnabled = false
+        let loginItemStatusItem = NSMenuItem(
+            title: "",
+            action: #selector(openLoginItemSettings(_:)),
+            keyEquivalent: ""
+        )
+        loginItemStatusItem.target = self
+        self.loginItemStatusItem = loginItemStatusItem
         debugStatusItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
         debugStatusItem?.isEnabled = false
         gestureDebugStatusItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
@@ -215,6 +229,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             permissionStatusItem!,
             scrollStatusItem!,
             gestureStatusItem!,
+            loginItemStatusItem,
             .separator(),
             settingsSubmenuItem,
             debugSubmenuItem,
@@ -240,6 +255,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             : gestureController.isListening
             ? "鼠标监听：已就绪"
             : "鼠标监听：创建失败"
+        switch LoginItemManager.state {
+        case .enabled:
+            loginItemStatusItem?.title = "登录时自动启动：已开启"
+            loginItemStatusItem?.isEnabled = false
+        case .requiresApproval:
+            loginItemStatusItem?.title = "允许登录时自动启动…"
+            loginItemStatusItem?.isEnabled = true
+        case .unavailable:
+            loginItemStatusItem?.title = "登录时自动启动：注册失败"
+            loginItemStatusItem?.isEnabled = true
+        }
         debugStatusItem?.title = "调试：" + scrollController.backendName + " | " + scrollController.lastDebugMessage
         gestureDebugStatusItem?.title = "手势：" + gestureController.lastDebugMessage
         scrollToggleItem?.state = settings.scrollEnabled ? .on : .off

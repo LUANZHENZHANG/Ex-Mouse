@@ -37,7 +37,7 @@
 
 ## 下载
 
-**[下载顺鼠 Ex-Mouse 1.20 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.20/Ex-Mouse-1.20-macOS-arm64.dmg)**
+**[下载顺鼠 Ex-Mouse 1.21 DMG 安装包](https://github.com/LUANZHENZHANG/Ex-Mouse/releases/download/v1.21/Ex-Mouse-1.21-macOS-arm64.dmg)**
 
 适用于 macOS 13 或更高版本的 Apple Silicon（M 系列）Mac。
 
@@ -66,6 +66,7 @@
 顺鼠只显示在菜单栏中，不会出现在 Dock 中。点击菜单栏中的鼠标图标即可操作。
 
 - 点击菜单栏图标后会直接显示授权、滚动和鼠标监听状态。
+- 顺鼠会注册为登录项，开机登录后自动启动；菜单会显示当前状态。
 - **启用滚轮独立滚动方向**：让鼠标滚轮与触控板各自保持顺手的方向。
 - **启用中键+手势功能**：按住中键左右滑动切换桌面，上下滑动打开或关闭调度中心。
 - **启用中键侧键快捷键**：使用侧键切换桌面，双击中键打开或关闭调度中心。
