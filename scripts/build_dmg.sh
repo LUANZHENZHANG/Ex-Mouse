@@ -51,7 +51,8 @@ cat > "$STAGING_DIR/安装说明.txt" <<'EOF'
 4. 按提示授予辅助功能权限。
 5. 顺鼠会自动检测授权并启动功能，无需退出重开。
 
-顺鼠不联网、不上传数据，也不记录键盘输入。
+顺鼠不包含遥测，不上传鼠标事件，也不记录键盘输入。
+cdx 额度查询通过本机 Codex 官方进程完成。
 项目主页：https://github.com/LUANZHENZHANG/Ex-Mouse
 EOF
 

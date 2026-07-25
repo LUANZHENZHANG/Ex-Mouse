@@ -58,7 +58,7 @@ final class DetailsWindowController: NSObject {
 
         let titleLabel = makeLabel("顺鼠 Ex-Mouse", font: .systemFont(ofSize: 28, weight: .semibold))
         let summaryLabel = makeLabel(
-            "轻量，不联网，让鼠标和触控板一样丝滑",
+            "轻量、无遥测，让鼠标和触控板一样丝滑",
             font: .systemFont(ofSize: 14),
             color: .secondaryLabelColor
         )
@@ -95,10 +95,11 @@ final class DetailsWindowController: NSObject {
 
             我不愿意使用太复杂的 Mac 鼠标设置软件，所以让 Codex 设计了这个小工具。
 
-            顺鼠 / Ex-Mouse 轻量、单机、不联网，主要功能：
+            顺鼠 / Ex-Mouse 轻量、无遥测，主要功能：
             • 让 Mac 触控板与鼠标滚轮各自保持顺手的滚动方向。
             • 使用鼠标侧键或按住中键左右滑动切换桌面。
             • 按住中键纵向滑动或双击中键打开调度中心。
+            • 在菜单中显示本机 cdx 剩余额度和重置时间。
 
             这个项目从前到后都是 Codex 帮我完成的。我自己用着挺好，所以分享给有同样需要的朋友。
             如果使用中有任何问题，请提醒我。谢谢！
