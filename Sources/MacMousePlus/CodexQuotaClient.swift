@@ -64,6 +64,10 @@ enum CodexQuotaError: LocalizedError {
 }
 
 enum CodexQuotaClient {
+    private struct Header: Decodable {
+        let id: Int?
+    }
+
     private struct Envelope: Decodable {
         struct Result: Decodable {
             struct RateLimits: Decodable {
@@ -84,10 +88,12 @@ enum CodexQuotaClient {
     }
 
     static func decodeResponse(_ data: Data) throws -> CodexQuotaSnapshot? {
-        let envelope = try JSONDecoder().decode(Envelope.self, from: data)
-        guard envelope.id == 2 else {
+        let decoder = JSONDecoder()
+        let header = try decoder.decode(Header.self, from: data)
+        guard header.id == 2 else {
             return nil
         }
+        let envelope = try decoder.decode(Envelope.self, from: data)
         if let error = envelope.error {
             throw CodexQuotaError.server(error.message)
         }
