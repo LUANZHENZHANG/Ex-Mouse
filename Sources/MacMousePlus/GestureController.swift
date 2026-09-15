@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 import CoreGraphics
 
+@MainActor
 final class GestureController {
     private enum Constants {
         static let horizontalTriggerDistance: CGFloat = 96
@@ -13,7 +14,8 @@ final class GestureController {
     private enum GestureAction {
         case previousSpace
         case nextSpace
-        case missionControl
+        case zoomIn
+        case zoomOut
 
         var description: String {
             switch self {
@@ -21,8 +23,10 @@ final class GestureController {
                 return "Previous Desktop"
             case .nextSpace:
                 return "Next Desktop"
-            case .missionControl:
-                return "Mission Control"
+            case .zoomIn:
+                return "Zoom In"
+            case .zoomOut:
+                return "Zoom Out"
             }
         }
     }
@@ -35,7 +39,9 @@ final class GestureController {
 
     private let settings: SettingsStore
     private let onStateChanged: () -> Void
-    private let desktopSwitcher = DesktopSwitcher()
+    private lazy var desktopSwitcher = DesktopSwitcher { [weak self] message in
+        self?.updateDebug(message)
+    }
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -162,7 +168,7 @@ final class GestureController {
             }
             gestureLockedUntilMouseUp = false
             let location = NSEvent.mouseLocation
-            beginTracking(at: location, source: "底层监听")
+            beginTracking(at: location)
             updateDebug("收到中键按下")
             return settings.middleGestureEnabled ? nil : Unmanaged.passUnretained(event)
 
@@ -228,8 +234,8 @@ final class GestureController {
 
         if abs(dy) >= Constants.verticalTriggerDistance,
            abs(dy) > abs(dx) + Constants.directionBias {
-            updateDebug("中键识别为纵向滑动")
-            return .missionControl
+            updateDebug(dy > 0 ? "中键识别为上滑：放大页面" : "中键识别为下滑：缩小页面")
+            return dy > 0 ? .zoomIn : .zoomOut
         }
 
         updateDebug("中键拖动中：dx=\(Int(dx)) dy=\(Int(dy))")
@@ -243,8 +249,10 @@ final class GestureController {
             switchDesktop(.previous)
         case .nextSpace:
             switchDesktop(.next)
-        case .missionControl:
-            openMissionControl()
+        case .zoomIn:
+            zoomPage(.in)
+        case .zoomOut:
+            zoomPage(.out)
         }
     }
 
@@ -259,7 +267,15 @@ final class GestureController {
             updateDebug("动作发送失败：无法切换桌面")
             return
         }
-        updateDebug("桌面切换事件已发送")
+        updateDebug("桌面切换请求已发送")
+    }
+
+    private func zoomPage(_ direction: DesktopSwitcher.ZoomDirection) {
+        guard desktopSwitcher.zoomPage(in: direction) else {
+            updateDebug("动作发送失败：无法缩放页面")
+            return
+        }
+        updateDebug(direction == .in ? "页面放大请求已发送" : "页面缩小请求已发送")
     }
 
     private func handleMiddleClick(_ state: GestureState) {
@@ -285,7 +301,7 @@ final class GestureController {
         }
     }
 
-    private func beginTracking(at location: CGPoint, source: String) {
+    private func beginTracking(at location: CGPoint) {
         trackingTimer?.cancel()
         gestureState = GestureState(downLocation: location, lastLocation: location)
         gestureLockedUntilMouseUp = false
@@ -293,7 +309,7 @@ final class GestureController {
         let timer = DispatchSource.makeTimerSource(queue: .main)
         timer.schedule(deadline: .now(), repeating: .milliseconds(16))
         timer.setEventHandler { [weak self] in
-            self?.pollMouseLocation(source: source)
+            self?.pollMouseLocation()
         }
         timer.resume()
         trackingTimer = timer
@@ -306,10 +322,7 @@ final class GestureController {
         gestureLockedUntilMouseUp = false
     }
 
-    private func pollMouseLocation(source: String) {
-        guard settings.middleGestureEnabled else {
-            return
-        }
+    private func pollMouseLocation() {
         guard var state = gestureState else {
             return
         }
@@ -319,7 +332,7 @@ final class GestureController {
         gestureState = state
 
         if !gestureLockedUntilMouseUp, let action = detectAction(from: state) {
-            updateDebug("\(source)：轮询识别成功")
+            updateDebug("中键：轮询识别成功")
             commitTrigger(action, state: state)
         }
     }
@@ -358,10 +371,10 @@ final class GestureController {
     private func sideButtonAction(for buttonNumber: Int64) -> GestureAction? {
         switch buttonNumber {
         case 3:
-            updateDebug("侧键上：下一个桌面")
+            updateDebug("前侧键：下一个桌面")
             return .nextSpace
         case 4:
-            updateDebug("侧键下：上一个桌面")
+            updateDebug("后侧键：上一个桌面")
             return .previousSpace
         default:
             return nil

@@ -72,9 +72,11 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.24</string>
+    <string>1.28</string>
     <key>CFBundleVersion</key>
-    <string>124</string>
+    <string>128</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>顺鼠需要通过 System Events 发送桌面切换和页面缩放快捷键。</string>
     <key>LSUIElement</key>
     <true/>
 </dict>

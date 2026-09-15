@@ -2,12 +2,6 @@ import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    private enum CodexQuotaDisplayState {
-        case loading
-        case loaded(CodexQuotaSnapshot)
-        case failed(String)
-    }
-
     private var statusItem: NSStatusItem?
     private let settings = SettingsStore()
     private lazy var scrollController = ScrollController { [weak self] in
@@ -18,11 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
     private let detailsWindowController = DetailsWindowController()
     private var permissionPollTimer: Timer?
-    private var codexQuotaRefreshTimer: Timer?
-    private var codexQuotaTask: Task<Void, Never>?
     private var isStatusMenuOpen = false
     private var hasPendingMenuUpdate = false
-    private var codexQuotaDisplayState: CodexQuotaDisplayState = .loading
 
     private var permissionActionItem: NSMenuItem?
     private var permissionStatusItem: NSMenuItem?
@@ -36,9 +27,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var loginItemStatusItem: NSMenuItem?
     private var settingsSubmenuItem: NSMenuItem?
     private var debugSubmenuItem: NSMenuItem?
-    private var codexPrimaryQuotaItem: NSMenuItem?
-    private var codexSecondaryQuotaItem: NSMenuItem?
-    private var codexQuotaRefreshItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupStatusItem()
@@ -49,20 +37,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             requestAccessibilityPermission(nil)
         }
         refreshMenu()
-        refreshCodexQuota(nil)
-        codexQuotaRefreshTimer = Timer.scheduledTimer(
-            timeInterval: 180,
-            target: self,
-            selector: #selector(refreshCodexQuota(_:)),
-            userInfo: nil,
-            repeats: true
-        )
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         permissionPollTimer?.invalidate()
-        codexQuotaRefreshTimer?.invalidate()
-        codexQuotaTask?.cancel()
         scrollController.stop()
         gestureController.stop()
     }
@@ -133,32 +111,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSApplication.shared.terminate(nil)
     }
 
-    @objc
-    private func refreshCodexQuota(_ sender: Any?) {
-        guard codexQuotaTask == nil else {
-            return
-        }
-        codexQuotaDisplayState = .loading
-        applyCodexQuotaDisplayState()
-
-        codexQuotaTask = Task { [weak self] in
-            do {
-                let snapshot = try await CodexQuotaClient.fetch()
-                guard !Task.isCancelled else {
-                    return
-                }
-                self?.codexQuotaDisplayState = .loaded(snapshot)
-            } catch {
-                guard !Task.isCancelled else {
-                    return
-                }
-                self?.codexQuotaDisplayState = .failed(error.localizedDescription)
-            }
-            self?.applyCodexQuotaDisplayState()
-            self?.codexQuotaTask = nil
-        }
-    }
-
     private func setupStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = item.button {
@@ -224,7 +176,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let settingsMenu = NSMenu(title: "设置")
         let debugMenu = NSMenu(title: "调试")
-        let codexQuotaMenu = NSMenu(title: "cdx 额度")
 
         let requestPermissionItem = NSMenuItem(
             title: "申请并检查辅助功能权限",
@@ -268,29 +219,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         item.menu?.setSubmenu(debugMenu, for: debugSubmenuItem)
         self.debugSubmenuItem = debugSubmenuItem
 
-        let codexPrimaryQuotaItem = NSMenuItem(title: "正在读取额度…", action: nil, keyEquivalent: "")
-        codexPrimaryQuotaItem.isEnabled = false
-        self.codexPrimaryQuotaItem = codexPrimaryQuotaItem
-        let codexSecondaryQuotaItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
-        codexSecondaryQuotaItem.isEnabled = false
-        codexSecondaryQuotaItem.isHidden = true
-        self.codexSecondaryQuotaItem = codexSecondaryQuotaItem
-        let codexQuotaRefreshItem = NSMenuItem(
-            title: "立即刷新",
-            action: #selector(refreshCodexQuota(_:)),
-            keyEquivalent: ""
-        )
-        codexQuotaRefreshItem.target = self
-        self.codexQuotaRefreshItem = codexQuotaRefreshItem
-        codexQuotaMenu.items = [
-            codexPrimaryQuotaItem,
-            codexSecondaryQuotaItem,
-            .separator(),
-            codexQuotaRefreshItem,
-        ]
-        let codexQuotaSubmenuItem = NSMenuItem(title: "cdx 额度", action: nil, keyEquivalent: "")
-        item.menu?.setSubmenu(codexQuotaMenu, for: codexQuotaSubmenuItem)
-
         let quitItem = NSMenuItem(title: "退出", action: #selector(quitApp(_:)), keyEquivalent: "q")
         quitItem.target = self
         let detailsItem = NSMenuItem(title: "详情…", action: #selector(showDetails(_:)), keyEquivalent: "")
@@ -305,8 +233,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             scrollStatusItem!,
             gestureStatusItem!,
             loginItemStatusItem,
-            .separator(),
-            codexQuotaSubmenuItem,
             .separator(),
             settingsSubmenuItem,
             debugSubmenuItem,
@@ -327,34 +253,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         hasPendingMenuUpdate = false
         refreshMenu()
-        applyCodexQuotaDisplayState()
-    }
-
-    private func applyCodexQuotaDisplayState() {
-        guard !isStatusMenuOpen else {
-            hasPendingMenuUpdate = true
-            return
-        }
-
-        switch codexQuotaDisplayState {
-        case .loading:
-            codexPrimaryQuotaItem?.title = "cdx：正在读取额度…"
-            codexSecondaryQuotaItem?.isHidden = true
-            codexQuotaRefreshItem?.isEnabled = false
-        case let .loaded(snapshot):
-            codexPrimaryQuotaItem?.title = snapshot.primary.menuTitle()
-            if let secondary = snapshot.secondary {
-                codexSecondaryQuotaItem?.title = secondary.menuTitle()
-                codexSecondaryQuotaItem?.isHidden = false
-            } else {
-                codexSecondaryQuotaItem?.isHidden = true
-            }
-            codexQuotaRefreshItem?.isEnabled = true
-        case let .failed(message):
-            codexPrimaryQuotaItem?.title = "cdx：\(message)"
-            codexSecondaryQuotaItem?.isHidden = true
-            codexQuotaRefreshItem?.isEnabled = true
-        }
     }
 
     private func refreshMenu() {
